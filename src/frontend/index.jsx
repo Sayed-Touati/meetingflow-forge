@@ -64,6 +64,68 @@ function FieldHeader({ title, hint }) {
     );
 }
 
+function AppHeader({ isInfoVisible, onToggleInfo }) {
+    return (
+        <Stack space="space.100">
+            <Inline space="space.100" alignBlock="center">
+                <Heading as="h1">MeetingFlow</Heading>
+                <Tooltip text="Show what this app does">
+                    <Button appearance="subtle" icon="info" onClick={onToggleInfo} />
+                </Tooltip>
+            </Inline>
+
+            <Text>
+                Welcome back. Select a Confluence meeting note and confirm the extracted
+                details before preparing the calendar handoff.
+            </Text>
+
+            {isInfoVisible ? (
+                <SectionMessage appearance="info" title="About MeetingFlow">
+                    <Text>
+                        MeetingFlow does not create meeting notes. It reviews meeting notes
+                        that already exist in Confluence, helps you confirm the extracted
+                        meeting details, and prepares the meeting link workflow.
+                    </Text>
+                </SectionMessage>
+            ) : null}
+        </Stack>
+    );
+}
+
+function MeetingNotePicker({
+    isLoadingMeetings,
+    meetingOptions,
+    onDateChange,
+    onMeetingChange,
+    selectedDate,
+}) {
+    return (
+        <Stack space="space.150">
+            <Inline space="space.200" alignBlock="end">
+                <Select
+                    name="meeting-note"
+                    label="Meeting note page"
+                    placeholder={
+                        isLoadingMeetings ? "Loading meeting notes..." : "Select a meeting note"
+                    }
+                    options={meetingOptions}
+                    onChange={(option) => onMeetingChange(option?.value)}
+                />
+                <DatePicker
+                    name="meeting-filter-date"
+                    label="Select date"
+                    defaultValue={selectedDate}
+                    onChange={onDateChange}
+                />
+            </Inline>
+
+            <Text>
+                The dropdown shows extracted meeting notes for the selected date.
+            </Text>
+        </Stack>
+    );
+}
+
 function EmptyValue({ children }) {
     return (
         <SectionMessage appearance="warning" title="Needs review">
@@ -263,6 +325,7 @@ const App = () => {
     const [isLoadingMeeting, setIsLoadingMeeting] = useState(false);
     const [saveMessage, setSaveMessage] = useState("");
     const [calendarMessage, setCalendarMessage] = useState("");
+    const [isAppInfoVisible, setIsAppInfoVisible] = useState(false);
 
     const meetingOptions = useMemo(
         () =>
@@ -367,52 +430,36 @@ const App = () => {
 
     return (
         <Stack space="space.300">
-            <Stack space="space.100">
-                <Heading as="h1">MeetingFlow</Heading>
-                <Text>
-                    Welcome back. Pick a meeting note, confirm the extracted details, then
-                    prepare the meeting link handoff.
-                </Text>
-            </Stack>
+            <AppHeader
+                isInfoVisible={isAppInfoVisible}
+                onToggleInfo={() => setIsAppInfoVisible((isVisible) => !isVisible)}
+            />
 
-            <Inline space="space.200" alignBlock="end">
-                <DatePicker
-                    name="meeting-filter-date"
-                    label="Meeting note date"
-                    defaultValue={selectedDate}
-                    onChange={handleDateChange}
-                />
-                <Select
-                    name="meeting-note"
-                    label="Meeting note"
-                    placeholder={
-                        isLoadingMeetings ? "Loading meeting notes..." : "Select a meeting note"
-                    }
-                    options={meetingOptions}
-                    onChange={(option) => loadSelectedMeeting(option?.value)}
-                />
-            </Inline>
+            <MeetingNotePicker
+                isLoadingMeetings={isLoadingMeetings}
+                meetingOptions={meetingOptions}
+                onDateChange={handleDateChange}
+                onMeetingChange={loadSelectedMeeting}
+                selectedDate={selectedDate}
+            />
 
-            <ButtonGroup>
-                <Button
-                    appearance="primary"
-                    icon="check"
-                    disabled={!hasSelectedMeeting}
-                    onClick={saveMeetingData}
-                >
-                    Save
-                </Button>
-                <Button icon="refresh" onClick={() => loadMeetingSummaries(selectedDate)}>
-                    Refresh
-                </Button>
-                <Button
-                    icon="calendar"
-                    disabled={!hasSelectedMeeting}
-                    onClick={previewCalendarEvent}
-                >
-                    Create Calendar Event
-                </Button>
-            </ButtonGroup>
+            {hasSelectedMeeting ? (
+                <ButtonGroup>
+                    <Button
+                        appearance="primary"
+                        icon="check"
+                        onClick={saveMeetingData}
+                    >
+                        Save
+                    </Button>
+                    <Button icon="refresh" onClick={() => loadMeetingSummaries(selectedDate)}>
+                        Refresh
+                    </Button>
+                    <Button icon="calendar" onClick={previewCalendarEvent}>
+                        Create Calendar Event
+                    </Button>
+                </ButtonGroup>
+            ) : null}
 
             {isLoadingMeetings || isLoadingMeeting ? (
                 <Inline space="space.100" alignBlock="center">
