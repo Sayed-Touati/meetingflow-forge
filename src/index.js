@@ -3,6 +3,25 @@ import api, { route } from "@forge/api";
 const MEETING_NOTES_TEMPLATE_ID =
   "com.atlassian.confluence.plugins.confluence-business-blueprints:meeting-notes-blueprint";
 
+const TEMPLATE_PLACEHOLDER_TEXT = [
+  "List goals for this meeting (e.g., Set design priorities for FY27)",
+  "Type /whiteboard to create an interactive canvas for icebreakers, brainstorms, diagramming, retros, and more",
+  "Time Topic Presenter Notes",
+  "@ mention teammate",
+  "Add notes for each discussion topic",
+  "Type /decision to record the decisions you make in this meeting:",
+  "Type /database to create a database of related information, meetings, or assets",
+];
+
+function removeTemplatePlaceholders(text) {
+  return TEMPLATE_PLACEHOLDER_TEXT.reduce(
+    (cleanedText, placeholder) => cleanedText.replaceAll(placeholder, " "),
+    text,
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function handlePageEvent(event, context) {
   console.log("MeetingFlow received a Confluence page update event.");
 
@@ -79,12 +98,13 @@ export async function handlePageEvent(event, context) {
         .replace(/&nbsp;/g, " ")
         .trim();
 
-      const contentPreview = match[2]
-        .replace(/<[^>]+>/g, " ")
-        .replace(/&nbsp;/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 300);
+      const contentPreview = removeTemplatePlaceholders(
+        match[2]
+          .replace(/<[^>]+>/g, " ")
+          .replace(/&nbsp;/g, " ")
+          .replace(/\s+/g, " ")
+          .trim(),
+      ).slice(0, 300);
 
       return [heading, contentPreview];
     }),
