@@ -4,15 +4,31 @@ app:
     name: nodejs22.x
 
 modules:
+  confluence:globalPage:
+    - key: meetingflow-page
+      resource: main
+      route: meetingflow
+      resolver:
+        function: resolver
+      render: native
+      title: MeetingFlow
+
   trigger:
     - key: meeting-note-page-updated
       function: handle-page-event
       events:
         - avi:confluence:created:page
         - avi:confluence:updated:page
+
   function:
     - key: handle-page-event
       handler: index.handlePageEvent
+    - key: resolver
+      handler: resolvers/index.handler
+
+resources:
+  - key: main
+    path: src/frontend/index.jsx
 
 permissions:
   scopes:

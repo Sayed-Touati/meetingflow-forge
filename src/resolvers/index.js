@@ -1,11 +1,12 @@
-import Resolver from '@forge/resolver';
+import Resolver from "@forge/resolver";
+import { kvs } from "@forge/kvs";
 
 const resolver = new Resolver();
 
-resolver.define('getText', (req) => {
-  console.log(req);
+resolver.define("getLatestMeetingData", async () => {
+  const latestMeetingData = await kvs.get("latest-meeting-data");
 
-  return 'Hello, world!';
+  return latestMeetingData ?? null;
 });
 
 export const handler = resolver.getDefinitions();
