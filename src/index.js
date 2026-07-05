@@ -1,4 +1,5 @@
 import api, { route } from "@forge/api";
+import { kvs } from "@forge/kvs";
 
 const MEETING_NOTES_TEMPLATE_ID =
   "com.atlassian.confluence.plugins.confluence-business-blueprints:meeting-notes-blueprint";
@@ -123,6 +124,10 @@ export async function handlePageEvent(event, context) {
   };
 
   console.log("Extracted meeting data:", extractedMeetingData);
+
+  await kvs.set("latest-meeting-data", extractedMeetingData);
+
+  console.log("Saved latest meeting data to Forge storage.");
 
   console.log("Meeting note sections preview:", sectionsByHeading);
 

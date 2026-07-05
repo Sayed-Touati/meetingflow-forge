@@ -18,3 +18,4 @@ permissions:
   scopes:
     - read:confluence-content.summary
     - read:page:confluence
+    - storage:app
