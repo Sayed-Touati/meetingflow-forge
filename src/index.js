@@ -1,27 +1,10 @@
 import api, { route } from "@forge/api";
 import { kvs } from "@forge/kvs";
+import { parseMeetingNotePage } from "./meeting-parser.mjs";
+import { saveMeetingNoteRecord } from "./meeting-storage.mjs";
 
 const MEETING_NOTES_TEMPLATE_ID =
   "com.atlassian.confluence.plugins.confluence-business-blueprints:meeting-notes-blueprint";
-
-const TEMPLATE_PLACEHOLDER_TEXT = [
-  "List goals for this meeting (e.g., Set design priorities for FY27)",
-  "Type /whiteboard to create an interactive canvas for icebreakers, brainstorms, diagramming, retros, and more",
-  "Time Topic Presenter Notes",
-  "@ mention teammate",
-  "Add notes for each discussion topic",
-  "Type /decision to record the decisions you make in this meeting:",
-  "Type /database to create a database of related information, meetings, or assets",
-];
-
-function removeTemplatePlaceholders(text) {
-  return TEMPLATE_PLACEHOLDER_TEXT.reduce(
-    (cleanedText, placeholder) => cleanedText.replaceAll(placeholder, " "),
-    text,
-  )
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 export async function handlePageEvent(event, context) {
   console.log("MeetingFlow received a Confluence page update event.");
@@ -48,11 +31,6 @@ export async function handlePageEvent(event, context) {
 
   const page = await pageResponse.json();
 
-  const pageUrl =
-    page._links?.base && page._links?.webui
-      ? `${page._links.base}${page._links.webui}`
-      : undefined;
-
   const isMeetingNotesPage =
     page.sourceTemplateEntityId === MEETING_NOTES_TEMPLATE_ID;
 
@@ -76,60 +54,17 @@ export async function handlePageEvent(event, context) {
     storageValuePreview: page.body?.storage?.value?.slice(0, 500),
   });
 
-  const storageValue = page.body?.storage?.value ?? "";
-
-  const meetingDate = storageValue.match(/<time[^>]*datetime="([^"]+)"/)?.[1];
-
-  console.log("Extracted meeting date:", meetingDate);
-
-  const sectionHeadings = [
-    ...storageValue.matchAll(/<h2[^>]*>(.*?)<\/h2>/g),
-  ].map((match) =>
-    match[1]
-      .replace(/<[^>]+>/g, "")
-      .replace(/&nbsp;/g, " ")
-      .trim(),
-  );
-
-  console.log("Meeting note section headings:", sectionHeadings);
-
-  const sectionMatches = [
-    ...storageValue.matchAll(/<h2[^>]*>(.*?)<\/h2>(.*?)(?=<h2[^>]*>|$)/gs),
-  ];
-
-  const sectionsByHeading = Object.fromEntries(
-    sectionMatches.map((match) => {
-      const heading = match[1]
-        .replace(/<[^>]+>/g, "")
-        .replace(/&nbsp;/g, " ")
-        .trim();
-
-      const contentPreview = removeTemplatePlaceholders(
-        match[2]
-          .replace(/<[^>]+>/g, " ")
-          .replace(/&nbsp;/g, " ")
-          .replace(/\s+/g, " ")
-          .trim(),
-      ).slice(0, 300);
-
-      return [heading, contentPreview];
-    }),
-  );
-
-  const extractedMeetingData = {
-    title: page.title,
-    date: meetingDate,
-    pageUrl,
-    sections: sectionsByHeading,
-  };
+  const extractedMeetingData = parseMeetingNotePage(page);
 
   console.log("Extracted meeting data:", extractedMeetingData);
+  console.log("Meeting note section headings:", Object.keys(extractedMeetingData.sections));
+  console.log("Extracted meeting date:", extractedMeetingData.date);
 
-  await kvs.set("latest-meeting-data", extractedMeetingData);
+  await saveMeetingNoteRecord(kvs, extractedMeetingData);
 
-  console.log("Saved latest meeting data to Forge storage.");
+  console.log("Saved meeting data to Forge storage.");
 
-  console.log("Meeting note sections preview:", sectionsByHeading);
+  console.log("Meeting note sections preview:", extractedMeetingData.sections);
 
   console.log("Page update summary:", {
     eventType: event.eventType,
