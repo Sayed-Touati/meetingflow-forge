@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { saveMeetingNoteRecord } from "../src/meeting-storage.mjs";
+import {
+  getMeetingNoteRecord,
+  listMeetingNotesForDate,
+  saveMeetingNoteRecord,
+} from "../src/meeting-storage.mjs";
 
 function createMemoryKvs(initialValues = {}) {
   const values = new Map(Object.entries(initialValues));
@@ -60,4 +64,42 @@ test("saveMeetingNoteRecord stores latest note, page note, and date index entry"
       ],
     },
   ]);
+});
+
+test("listMeetingNotesForDate returns an empty list when no date index exists", async () => {
+  const kvs = createMemoryKvs();
+
+  assert.deepEqual(await listMeetingNotesForDate(kvs, "2026-07-06"), []);
+});
+
+test("listMeetingNotesForDate falls back to latest note while old storage is being migrated", async () => {
+  const kvs = createMemoryKvs({
+    "latest-meeting-data": {
+      pageId: "latest-page",
+      title: "Latest sync",
+      date: "2026-07-05",
+      pageUrl: "https://example.com/latest",
+    },
+  });
+
+  assert.deepEqual(await listMeetingNotesForDate(kvs, "2026-07-05"), [
+    {
+      pageId: "latest-page",
+      title: "Latest sync",
+      date: "2026-07-05",
+      pageUrl: "https://example.com/latest",
+    },
+  ]);
+});
+
+test("getMeetingNoteRecord loads one full meeting note by page ID", async () => {
+  const meetingNote = {
+    pageId: "new-page",
+    title: "Design sync",
+  };
+  const kvs = createMemoryKvs({
+    "meeting-note:new-page": meetingNote,
+  });
+
+  assert.deepEqual(await getMeetingNoteRecord(kvs, "new-page"), meetingNote);
 });

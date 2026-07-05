@@ -20,6 +20,10 @@ function createMeetingNoteIndexEntry(meetingNote) {
   };
 }
 
+function latestMeetingMatchesDate(latestMeeting, date) {
+  return latestMeeting?.pageId && latestMeeting.date === date;
+}
+
 function mergeMeetingNoteIndex(existingIndex, meetingNote) {
   const existingEntries = Array.isArray(existingIndex) ? existingIndex : [];
   const nextEntry = createMeetingNoteIndexEntry(meetingNote);
@@ -44,4 +48,30 @@ export async function saveMeetingNoteRecord(kvsClient, meetingNote) {
   const existingIndex = await kvsClient.get(indexKey);
 
   await kvsClient.set(indexKey, mergeMeetingNoteIndex(existingIndex, meetingNote));
+}
+
+export async function listMeetingNotesForDate(kvsClient, date) {
+  if (!date) {
+    return [];
+  }
+
+  const index = await kvsClient.get(meetingNoteIndexKey(date));
+
+  if (Array.isArray(index) && index.length > 0) {
+    return index;
+  }
+
+  const latestMeeting = await kvsClient.get(LATEST_MEETING_KEY);
+
+  return latestMeetingMatchesDate(latestMeeting, date)
+    ? [createMeetingNoteIndexEntry(latestMeeting)]
+    : [];
+}
+
+export async function getMeetingNoteRecord(kvsClient, pageId) {
+  if (!pageId) {
+    return null;
+  }
+
+  return (await kvsClient.get(meetingNoteKey(pageId))) ?? null;
 }
