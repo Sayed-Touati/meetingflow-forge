@@ -16,6 +16,7 @@ const App = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [editableMeetingData, setEditableMeetingData] = useState(null);
     const [saveMessage, setSaveMessage] = useState("");
+    const [calendarMessage, setCalendarMessage] = useState("");
 
     const loadMeetingData = async () => {
         setIsLoading(true);
@@ -37,6 +38,14 @@ const App = () => {
         if (result.success) {
             setMeetingData(editableMeetingData);
         }
+    };
+
+    const previewCalendarEvent = () => {
+        console.log("Calendar event preview:", editableMeetingData);
+
+        setCalendarMessage(
+            `Ready to create calendar event for "${editableMeetingData?.title ?? "Untitled meeting"}".`,
+        );
     };
 
     const updateMeetingField = (fieldName, value) => {
@@ -146,12 +155,11 @@ const App = () => {
             />
 
             {saveMessage ? <Text>{saveMessage}</Text> : null}
-            
+            {calendarMessage ? <Text>{calendarMessage}</Text> : null}
+
             <Button onClick={saveMeetingData}>Save</Button>
             <Button onClick={loadMeetingData}>Refresh</Button>
-            <Button onClick={() => console.log("Create Calendar Event clicked")}>
-                Create Calendar Event
-            </Button>
+            <Button onClick={previewCalendarEvent}>Create Calendar Event</Button>
         </Stack>
     );
 };
