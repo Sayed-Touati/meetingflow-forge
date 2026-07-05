@@ -1,0 +1,20 @@
+app:
+  id: ari:cloud:ecosystem::app/00e4214a-c469-4fcb-90ef-d1f4c9d4bbc6
+  runtime:
+    name: nodejs22.x
+
+modules:
+  trigger:
+    - key: meeting-note-page-updated
+      function: handle-page-event
+      events:
+        - avi:confluence:created:page
+        - avi:confluence:updated:page
+  function:
+    - key: handle-page-event
+      handler: index.handlePageEvent
+
+permissions:
+  scopes:
+    - read:confluence-content.summary
+    - read:page:confluence
