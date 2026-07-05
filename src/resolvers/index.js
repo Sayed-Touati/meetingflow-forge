@@ -2,18 +2,11 @@ import Resolver from "@forge/resolver";
 import { kvs } from "@forge/kvs";
 import {
   getMeetingNoteRecord,
-  LATEST_MEETING_KEY,
   listMeetingNotesForDate,
   saveMeetingNoteRecord,
 } from "../meeting-storage.mjs";
 
 const resolver = new Resolver();
-
-resolver.define("getLatestMeetingData", async () => {
-  const latestMeetingData = await kvs.get(LATEST_MEETING_KEY);
-
-  return latestMeetingData ?? null;
-});
 
 resolver.define("listMeetingNotesForDate", async (req) => {
   return listMeetingNotesForDate(kvs, req.payload?.date);

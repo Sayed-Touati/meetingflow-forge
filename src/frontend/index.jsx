@@ -486,7 +486,7 @@ const App = () => {
                     <Text>
                         No extracted meeting notes are available
                         {selectedDate ? ` for ${selectedDate}` : ""}. Update a Confluence
-                        Meeting Notes page, then refresh.
+                        Meeting Notes page so MeetingFlow can index it, then refresh.
                     </Text>
                 </SectionMessage>
             ) : null}

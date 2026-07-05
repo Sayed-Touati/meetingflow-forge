@@ -1,5 +1,3 @@
-export const LATEST_MEETING_KEY = "latest-meeting-data";
-
 export function meetingNoteKey(pageId) {
   return `meeting-note:${pageId}`;
 }
@@ -13,15 +11,11 @@ function createMeetingNoteIndexEntry(meetingNote) {
   // Keeping full page data out of the index prevents each dropdown load from
   // pulling large meeting sections, tables, and links that are not yet visible.
   return {
-    pageId: meetingNote.pageId ?? LATEST_MEETING_KEY,
+    pageId: meetingNote.pageId,
     title: meetingNote.title,
     date: meetingNote.date,
     pageUrl: meetingNote.pageUrl,
   };
-}
-
-function latestMeetingMatchesDate(latestMeeting, date) {
-  return latestMeeting?.pageId && latestMeeting.date === date;
 }
 
 function mergeMeetingNoteIndex(existingIndex, meetingNote) {
@@ -35,9 +29,6 @@ function mergeMeetingNoteIndex(existingIndex, meetingNote) {
 }
 
 export async function saveMeetingNoteRecord(kvsClient, meetingNote) {
-  // Keep the old "latest" key for the existing prototype UI, while also saving
-  // the note by page ID so the next UI milestone can load a selected meeting.
-  await kvsClient.set(LATEST_MEETING_KEY, meetingNote);
   await kvsClient.set(meetingNoteKey(meetingNote.pageId), meetingNote);
 
   const allIndexKey = meetingNoteIndexKey();
@@ -61,24 +52,12 @@ export async function saveMeetingNoteRecord(kvsClient, meetingNote) {
 export async function listMeetingNotesForDate(kvsClient, date) {
   const index = await kvsClient.get(meetingNoteIndexKey(date));
 
-  if (Array.isArray(index) && index.length > 0) {
-    return index;
-  }
-
-  const latestMeeting = await kvsClient.get(LATEST_MEETING_KEY);
-
-  return !date || latestMeetingMatchesDate(latestMeeting, date)
-    ? [createMeetingNoteIndexEntry(latestMeeting)]
-    : [];
+  return Array.isArray(index) ? index : [];
 }
 
 export async function getMeetingNoteRecord(kvsClient, pageId) {
   if (!pageId) {
     return null;
-  }
-
-  if (pageId === LATEST_MEETING_KEY) {
-    return (await kvsClient.get(LATEST_MEETING_KEY)) ?? null;
   }
 
   return (await kvsClient.get(meetingNoteKey(pageId))) ?? null;
