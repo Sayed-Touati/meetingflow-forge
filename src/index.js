@@ -47,6 +47,11 @@ export async function handlePageEvent(event, context) {
 
   const page = await pageResponse.json();
 
+  const pageUrl =
+    page._links?.base && page._links?.webui
+      ? `${page._links.base}${page._links.webui}`
+      : undefined;
+
   const isMeetingNotesPage =
     page.sourceTemplateEntityId === MEETING_NOTES_TEMPLATE_ID;
 
@@ -113,6 +118,7 @@ export async function handlePageEvent(event, context) {
   const extractedMeetingData = {
     title: page.title,
     date: meetingDate,
+    pageUrl,
     sections: sectionsByHeading,
   };
 
