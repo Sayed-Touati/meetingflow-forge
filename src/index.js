@@ -40,6 +40,10 @@ export async function handlePageEvent(event, context) {
 
   const storageValue = page.body?.storage?.value ?? "";
 
+  const meetingDate = storageValue.match(/<time[^>]*datetime="([^"]+)"/)?.[1];
+
+  console.log("Extracted meeting date:", meetingDate);
+
   const sectionHeadings = [
     ...storageValue.matchAll(/<h2[^>]*>(.*?)<\/h2>/g),
   ].map((match) =>
@@ -72,6 +76,14 @@ export async function handlePageEvent(event, context) {
       return [heading, contentPreview];
     }),
   );
+
+  const extractedMeetingData = {
+    title: page.title,
+    date: meetingDate,
+    sections: sectionsByHeading,
+  };
+
+  console.log("Extracted meeting data:", extractedMeetingData);
 
   console.log("Meeting note sections preview:", sectionsByHeading);
 
