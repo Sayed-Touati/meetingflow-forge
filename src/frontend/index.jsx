@@ -15,6 +15,7 @@ const App = () => {
     const [meetingData, setMeetingData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [editableMeetingData, setEditableMeetingData] = useState(null);
+    const [saveMessage, setSaveMessage] = useState("");
 
     const loadMeetingData = async () => {
         setIsLoading(true);
@@ -24,6 +25,18 @@ const App = () => {
         setMeetingData(latestMeetingData);
         setEditableMeetingData(latestMeetingData);
         setIsLoading(false);
+    };
+
+    const saveMeetingData = async () => {
+        const result = await invoke("saveLatestMeetingData", {
+            meetingData: editableMeetingData,
+        });
+
+        setSaveMessage(result.message);
+
+        if (result.success) {
+            setMeetingData(editableMeetingData);
+        }
     };
 
     const updateMeetingField = (fieldName, value) => {
@@ -132,6 +145,9 @@ const App = () => {
                 onChange={(event) => updateMeetingSection("Related info", event.target.value)}
             />
 
+            {saveMessage ? <Text>{saveMessage}</Text> : null}
+            
+            <Button onClick={saveMeetingData}>Save</Button>
             <Button onClick={loadMeetingData}>Refresh</Button>
             <Button onClick={() => console.log("Create Calendar Event clicked")}>
                 Create Calendar Event

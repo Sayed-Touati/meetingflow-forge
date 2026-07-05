@@ -9,4 +9,22 @@ resolver.define("getLatestMeetingData", async () => {
   return latestMeetingData ?? null;
 });
 
+resolver.define("saveLatestMeetingData", async (req) => {
+  const meetingData = req.payload?.meetingData;
+
+  if (!meetingData) {
+    return {
+      success: false,
+      message: "No meeting data provided.",
+    };
+  }
+
+  await kvs.set("latest-meeting-data", meetingData);
+
+  return {
+    success: true,
+    message: "Meeting data saved.",
+  };
+});
+
 export const handler = resolver.getDefinitions();
