@@ -1,5 +1,8 @@
 import api, { route } from "@forge/api";
 
+const MEETING_NOTES_TEMPLATE_ID =
+  "com.atlassian.confluence.plugins.confluence-business-blueprints:meeting-notes-blueprint";
+
 export async function handlePageEvent(event, context) {
   console.log("MeetingFlow received a Confluence page update event.");
 
@@ -24,6 +27,16 @@ export async function handlePageEvent(event, context) {
   }
 
   const page = await pageResponse.json();
+
+  const isMeetingNotesPage =
+    page.sourceTemplateEntityId === MEETING_NOTES_TEMPLATE_ID;
+
+  console.log("Meeting notes template detected:", isMeetingNotesPage);
+
+  if (!isMeetingNotesPage) {
+    console.log("This page is not a Confluence Meeting Notes page. Skipping.");
+    return;
+  }
 
   console.log("Fetched page fields:", Object.keys(page));
 
