@@ -7,6 +7,7 @@ import ForgeReconciler, {
     DynamicTable,
     Heading,
     Inline,
+    Label,
     Link,
     List,
     ListItem,
@@ -94,15 +95,19 @@ function MeetingNotePicker({
     return (
         <Stack space="space.150">
             <Inline space="space.200" alignBlock="end">
-                <Select
-                    name="meeting-note"
-                    label="Meeting note page"
-                    placeholder={
-                        isLoadingMeetings ? "Loading meeting notes..." : "Select a meeting note"
-                    }
-                    options={meetingOptions}
-                    onChange={(option) => onMeetingChange(option?.value)}
-                />
+                <Stack space="space.050">
+                    <Label labelFor="meeting-note">Meeting note page</Label>
+                    <Select
+                        id="meeting-note"
+                        name="meeting-note"
+                        placeholder={
+                            isLoadingMeetings ? "Loading meeting notes..." : "Select a meeting note"
+                        }
+                        options={meetingOptions}
+                        isDisabled={isLoadingMeetings || meetingOptions.length === 0}
+                        onChange={(option) => onMeetingChange(option?.value)}
+                    />
+                </Stack>
                 <DatePicker
                     key={selectedDate || "all-dates"}
                     name="meeting-filter-date"

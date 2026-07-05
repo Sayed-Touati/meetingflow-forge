@@ -114,7 +114,6 @@ test("listMeetingNotesForDate returns all indexed notes when no date is provided
 test("listMeetingNotesForDate falls back to latest note when no date is provided and no all index exists", async () => {
   const kvs = createMemoryKvs({
     "latest-meeting-data": {
-      pageId: "latest-page",
       title: "Latest sync",
       date: "2026-07-05",
       pageUrl: "https://example.com/latest",
@@ -123,7 +122,7 @@ test("listMeetingNotesForDate falls back to latest note when no date is provided
 
   assert.deepEqual(await listMeetingNotesForDate(kvs), [
     {
-      pageId: "latest-page",
+      pageId: "latest-meeting-data",
       title: "Latest sync",
       date: "2026-07-05",
       pageUrl: "https://example.com/latest",
@@ -167,4 +166,20 @@ test("getMeetingNoteRecord loads one full meeting note by page ID", async () => 
   });
 
   assert.deepEqual(await getMeetingNoteRecord(kvs, "new-page"), meetingNote);
+});
+
+test("getMeetingNoteRecord loads legacy latest note when selected from fallback dropdown entry", async () => {
+  const latestMeetingNote = {
+    title: "Latest sync",
+    date: "2026-07-05",
+    pageUrl: "https://example.com/latest",
+  };
+  const kvs = createMemoryKvs({
+    "latest-meeting-data": latestMeetingNote,
+  });
+
+  assert.deepEqual(
+    await getMeetingNoteRecord(kvs, "latest-meeting-data"),
+    latestMeetingNote,
+  );
 });

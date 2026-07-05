@@ -13,7 +13,7 @@ function createMeetingNoteIndexEntry(meetingNote) {
   // Keeping full page data out of the index prevents each dropdown load from
   // pulling large meeting sections, tables, and links that are not yet visible.
   return {
-    pageId: meetingNote.pageId,
+    pageId: meetingNote.pageId ?? LATEST_MEETING_KEY,
     title: meetingNote.title,
     date: meetingNote.date,
     pageUrl: meetingNote.pageUrl,
@@ -75,6 +75,10 @@ export async function listMeetingNotesForDate(kvsClient, date) {
 export async function getMeetingNoteRecord(kvsClient, pageId) {
   if (!pageId) {
     return null;
+  }
+
+  if (pageId === LATEST_MEETING_KEY) {
+    return (await kvsClient.get(LATEST_MEETING_KEY)) ?? null;
   }
 
   return (await kvsClient.get(meetingNoteKey(pageId))) ?? null;
