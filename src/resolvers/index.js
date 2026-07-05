@@ -1,5 +1,7 @@
 import Resolver from "@forge/resolver";
+import api, { route } from "@forge/api";
 import { kvs } from "@forge/kvs";
+import { syncMeetingNotesFromConfluence } from "../meeting-note-sync.mjs";
 import {
   getMeetingNoteRecord,
   listMeetingNotesForDate,
@@ -9,7 +11,22 @@ import {
 const resolver = new Resolver();
 
 resolver.define("listMeetingNotesForDate", async (req) => {
-  return listMeetingNotesForDate(kvs, req.payload?.date);
+  const date = req.payload?.date;
+
+  await syncMeetingNotesFromConfluence({
+    date,
+    fetchPage: (pageId) =>
+      api
+        .asUser()
+        .requestConfluence(route`/wiki/api/v2/pages/${pageId}?body-format=storage`),
+    kvsClient: kvs,
+    searchPages: ({ cql, limit }) =>
+      api
+        .asUser()
+        .requestConfluence(route`/wiki/rest/api/search?cql=${cql}&limit=${limit}`),
+  });
+
+  return listMeetingNotesForDate(kvs, date);
 });
 
 resolver.define("getMeetingNote", async (req) => {

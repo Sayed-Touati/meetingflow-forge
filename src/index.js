@@ -2,9 +2,7 @@ import api, { route } from "@forge/api";
 import { kvs } from "@forge/kvs";
 import { parseMeetingNotePage } from "./meeting-parser.mjs";
 import { saveMeetingNoteRecord } from "./meeting-storage.mjs";
-
-const MEETING_NOTES_TEMPLATE_ID =
-  "com.atlassian.confluence.plugins.confluence-business-blueprints:meeting-notes-blueprint";
+import { MEETING_NOTES_TEMPLATE_ID } from "./meeting-notes-template.mjs";
 
 export async function handlePageEvent(event, context) {
   console.log("MeetingFlow received a Confluence page update event.");

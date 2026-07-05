@@ -34,4 +34,5 @@ permissions:
   scopes:
     - read:confluence-content.summary
     - read:page:confluence
+    - search:confluence
     - storage:app
