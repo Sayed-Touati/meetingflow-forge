@@ -5,7 +5,7 @@ export function meetingNoteKey(pageId) {
 }
 
 export function meetingNoteIndexKey(date) {
-  return `meeting-note-index:${date}`;
+  return `meeting-note-index:${date || "all"}`;
 }
 
 function createMeetingNoteIndexEntry(meetingNote) {
@@ -40,6 +40,14 @@ export async function saveMeetingNoteRecord(kvsClient, meetingNote) {
   await kvsClient.set(LATEST_MEETING_KEY, meetingNote);
   await kvsClient.set(meetingNoteKey(meetingNote.pageId), meetingNote);
 
+  const allIndexKey = meetingNoteIndexKey();
+  const existingAllIndex = await kvsClient.get(allIndexKey);
+
+  await kvsClient.set(
+    allIndexKey,
+    mergeMeetingNoteIndex(existingAllIndex, meetingNote),
+  );
+
   if (!meetingNote.date) {
     return;
   }
@@ -51,10 +59,6 @@ export async function saveMeetingNoteRecord(kvsClient, meetingNote) {
 }
 
 export async function listMeetingNotesForDate(kvsClient, date) {
-  if (!date) {
-    return [];
-  }
-
   const index = await kvsClient.get(meetingNoteIndexKey(date));
 
   if (Array.isArray(index) && index.length > 0) {
@@ -63,7 +67,7 @@ export async function listMeetingNotesForDate(kvsClient, date) {
 
   const latestMeeting = await kvsClient.get(LATEST_MEETING_KEY);
 
-  return latestMeetingMatchesDate(latestMeeting, date)
+  return !date || latestMeetingMatchesDate(latestMeeting, date)
     ? [createMeetingNoteIndexEntry(latestMeeting)]
     : [];
 }

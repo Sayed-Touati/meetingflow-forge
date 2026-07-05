@@ -23,15 +23,6 @@ import ForgeReconciler, {
 } from "@forge/react";
 import { invoke } from "@forge/bridge";
 
-function getTodayDate() {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
-}
-
 function getGoogleMeetLink(meetingData) {
     return meetingData?.relatedLinks?.find((link) => link.type === "google-meet");
 }
@@ -95,6 +86,7 @@ function AppHeader({ isInfoVisible, onToggleInfo }) {
 function MeetingNotePicker({
     isLoadingMeetings,
     meetingOptions,
+    onClearDate,
     onDateChange,
     onMeetingChange,
     selectedDate,
@@ -112,15 +104,23 @@ function MeetingNotePicker({
                     onChange={(option) => onMeetingChange(option?.value)}
                 />
                 <DatePicker
+                    key={selectedDate || "all-dates"}
                     name="meeting-filter-date"
                     label="Select date"
-                    defaultValue={selectedDate}
+                    description="Optional. Leave blank to show every extracted meeting note."
+                    defaultValue={selectedDate || undefined}
                     onChange={onDateChange}
                 />
             </Inline>
 
+            {selectedDate ? (
+                <Button appearance="subtle" icon="cross" onClick={onClearDate}>
+                    Clear date filter
+                </Button>
+            ) : null}
+
             <Text>
-                The dropdown shows extracted meeting notes for the selected date.
+                The dropdown shows every extracted meeting note unless you choose a date.
             </Text>
         </Stack>
     );
@@ -317,7 +317,7 @@ function ConfirmationPanel({
 }
 
 const App = () => {
-    const [selectedDate, setSelectedDate] = useState(getTodayDate());
+    const [selectedDate, setSelectedDate] = useState("");
     const [meetingSummaries, setMeetingSummaries] = useState([]);
     const [selectedMeetingData, setSelectedMeetingData] = useState(null);
     const [editableMeetingData, setEditableMeetingData] = useState(null);
@@ -417,8 +417,15 @@ const App = () => {
     };
 
     const handleDateChange = (date) => {
-        setSelectedDate(date);
-        loadMeetingSummaries(date);
+        const nextDate = date ?? "";
+
+        setSelectedDate(nextDate);
+        loadMeetingSummaries(nextDate);
+    };
+
+    const clearDateFilter = () => {
+        setSelectedDate("");
+        loadMeetingSummaries("");
     };
 
     useEffect(() => {
@@ -438,6 +445,7 @@ const App = () => {
             <MeetingNotePicker
                 isLoadingMeetings={isLoadingMeetings}
                 meetingOptions={meetingOptions}
+                onClearDate={clearDateFilter}
                 onDateChange={handleDateChange}
                 onMeetingChange={loadSelectedMeeting}
                 selectedDate={selectedDate}
@@ -471,8 +479,9 @@ const App = () => {
             {!isLoadingMeetings && meetingSummaries.length === 0 ? (
                 <SectionMessage appearance="warning" title="No meeting notes found">
                     <Text>
-                        No extracted meeting notes exist for {selectedDate}. Update a Confluence
-                        Meeting Notes page for this date, then refresh.
+                        No extracted meeting notes are available
+                        {selectedDate ? ` for ${selectedDate}` : ""}. Update a Confluence
+                        Meeting Notes page, then refresh.
                     </Text>
                 </SectionMessage>
             ) : null}

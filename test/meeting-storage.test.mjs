@@ -47,6 +47,17 @@ test("saveMeetingNoteRecord stores latest note, page note, and date index entry"
     { key: "latest-meeting-data", value: meetingNote },
     { key: "meeting-note:new-page", value: meetingNote },
     {
+      key: "meeting-note-index:all",
+      value: [
+        {
+          pageId: "new-page",
+          title: "Design sync",
+          date: "2026-07-05",
+          pageUrl: "https://example.com/new",
+        },
+      ],
+    },
+    {
       key: "meeting-note-index:2026-07-05",
       value: [
         {
@@ -62,6 +73,60 @@ test("saveMeetingNoteRecord stores latest note, page note, and date index entry"
           pageUrl: "https://example.com/old",
         },
       ],
+    },
+  ]);
+});
+
+test("listMeetingNotesForDate returns all indexed notes when no date is provided", async () => {
+  const kvs = createMemoryKvs({
+    "meeting-note-index:all": [
+      {
+        pageId: "page-one",
+        title: "First sync",
+        date: "2026-07-05",
+        pageUrl: "https://example.com/one",
+      },
+      {
+        pageId: "page-two",
+        title: "Second sync",
+        date: "2026-07-06",
+        pageUrl: "https://example.com/two",
+      },
+    ],
+  });
+
+  assert.deepEqual(await listMeetingNotesForDate(kvs), [
+    {
+      pageId: "page-one",
+      title: "First sync",
+      date: "2026-07-05",
+      pageUrl: "https://example.com/one",
+    },
+    {
+      pageId: "page-two",
+      title: "Second sync",
+      date: "2026-07-06",
+      pageUrl: "https://example.com/two",
+    },
+  ]);
+});
+
+test("listMeetingNotesForDate falls back to latest note when no date is provided and no all index exists", async () => {
+  const kvs = createMemoryKvs({
+    "latest-meeting-data": {
+      pageId: "latest-page",
+      title: "Latest sync",
+      date: "2026-07-05",
+      pageUrl: "https://example.com/latest",
+    },
+  });
+
+  assert.deepEqual(await listMeetingNotesForDate(kvs), [
+    {
+      pageId: "latest-page",
+      title: "Latest sync",
+      date: "2026-07-05",
+      pageUrl: "https://example.com/latest",
     },
   ]);
 });
