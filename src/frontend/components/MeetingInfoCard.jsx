@@ -337,6 +337,7 @@ export default function MeetingInfoCard({
     isDetailsVisible,
     meetingData,
     onEdit,
+    onEditInConfluence,
     onToggleDetails,
 }) {
     const detailsToggleLabel = isDetailsVisible ? "Hide details" : "Show details";
@@ -369,6 +370,16 @@ export default function MeetingInfoCard({
                             onClick={onEdit}
                         >
                             Edit
+                        </Button>
+
+                        <Button
+                            appearance="primary"
+                            disabled={!meetingData.pageUrl}
+                            icon="edit-filled"
+                            iconPosition="before"
+                            onClick={onEditInConfluence}
+                        >
+                            Edit in Confluence
                         </Button>
                     </Inline>
                 </Inline>

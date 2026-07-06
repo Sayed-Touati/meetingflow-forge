@@ -50,14 +50,6 @@ const slackButtonStyles = createActionButtonStyles({
 });
 
 
-const confluenceButtonStyles = createActionButtonStyles({
-    backgroundColor: "color.background.neutral",
-    hoverColor: "color.background.neutral.hovered",
-    pressedColor: "color.background.neutral.pressed",
-    textColor: "color.text",
-});
-
-
 const deleteButtonStyles = createActionButtonStyles({
     backgroundColor: "color.background.danger.bold",
     hoverColor: "color.background.danger.bold.hovered",

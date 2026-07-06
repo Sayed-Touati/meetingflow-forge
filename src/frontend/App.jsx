@@ -6,7 +6,7 @@ import {
     Stack,
     Text,
 } from "@forge/react";
-import { invoke } from "@forge/bridge";
+import { invoke, router } from "@forge/bridge";
 import {
     AUTOMATION_DEFAULT_SETTINGS,
     createAutomationSettingsDraft,
@@ -39,6 +39,30 @@ function getGoogleMeetLink(meetingData) {
     }
 
     return meetingData?.relatedLinks?.find((link) => link.type === "google-meet");
+}
+
+function getConfluenceEditUrl({ pageId, pageUrl }) {
+    if (!pageUrl) {
+        return "";
+    }
+
+    try {
+        const url = new URL(pageUrl);
+        const pageIdFromUrl = pageId || url.pathname.match(/\/pages\/([^/]+)/)?.[1];
+        const pathPrefix = url.pathname.match(/^(.*\/pages\/)(?:[^/]+)(?:\/.*)?$/)?.[1];
+
+        if (!pageIdFromUrl || !pathPrefix) {
+            return pageUrl;
+        }
+
+        url.pathname = `${pathPrefix}edit-v2/${pageIdFromUrl}`;
+        url.search = "";
+        url.hash = "";
+
+        return url.toString();
+    } catch (error) {
+        return pageUrl;
+    }
 }
 
 export default function App() {
@@ -177,6 +201,17 @@ export default function App() {
         setIsEditModalOpen(false);
     };
 
+    const openSelectedMeetingInConfluenceEditor = () => {
+        const editPageUrl = getConfluenceEditUrl({
+            pageId: displayedMeetingData?.pageId,
+            pageUrl: displayedMeetingData?.pageUrl,
+        });
+
+        if (editPageUrl) {
+            router.open(editPageUrl);
+        }
+    };
+
     const toggleMeetingDetails = () => {
         if (isDetailsVisible) {
             setCalendarMessage("");
@@ -270,6 +305,7 @@ export default function App() {
                     onCreateCalendarEvent={previewCalendarEvent}
                     onDelete={() => {}}
                     onEdit={() => setIsEditModalOpen(true)}
+                    onEditInConfluence={openSelectedMeetingInConfluenceEditor}
                     onToggleDetails={toggleMeetingDetails}
                 />
             ) : null}

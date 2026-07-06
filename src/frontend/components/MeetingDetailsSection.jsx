@@ -33,6 +33,7 @@ export default function MeetingDetailsSection({
     onCreateCalendarEvent,
     onDelete,
     onEdit,
+    onEditInConfluence,
     onToggleDetails,
 }) {
     return (
@@ -44,6 +45,7 @@ export default function MeetingDetailsSection({
                             isDetailsVisible={isDetailsVisible}
                             meetingData={meetingData}
                             onEdit={onEdit}
+                            onEditInConfluence={onEditInConfluence}
                             onToggleDetails={onToggleDetails}
                         />
                     </Box>
