@@ -162,6 +162,74 @@ test("parseMeetingNotePage extracts participant mentions from supported Confluen
   ]);
 });
 
+test("parseMeetingNotePage extracts all presenter mentions from one discussion topic cell", () => {
+  const page = {
+    id: "multi-presenter-cell",
+    title: "Multi presenter sync",
+    body: {
+      storage: {
+        value: `
+          <h2>Discussion topics</h2>
+          <table>
+            <tbody>
+              <tr><th>Time</th><th>Topic</th><th>Presenter</th><th>Notes</th></tr>
+              <tr>
+                <td>10:00</td>
+                <td>Launch plan</td>
+                <td>
+                  <ac:link><ri:user ri:account-id="abc-123" /><ac:plain-text-link-body><![CDATA[Sayed Touati]]></ac:plain-text-link-body></ac:link>
+                  <ac:link><ri:user ri:account-id="def-456" /><ac:plain-text-link-body><![CDATA[Iheb Touati]]></ac:plain-text-link-body></ac:link>
+                </td>
+                <td>Both presenters should appear.</td>
+              </tr>
+            </tbody>
+          </table>
+        `,
+      },
+    },
+  };
+
+  assert.deepEqual(parseMeetingNotePage(page).discussionTopics[0].presenter, [
+    { accountId: "abc-123", displayName: "Sayed Touati" },
+    { accountId: "def-456", displayName: "Iheb Touati" },
+  ]);
+});
+
+test("parseMeetingNotePage preserves Confluence bullet notes in discussion topic rows", () => {
+  const page = {
+    id: "topic-bullet-notes",
+    title: "Bullet notes sync",
+    body: {
+      storage: {
+        value: `
+          <h2>Discussion topics</h2>
+          <table>
+            <tbody>
+              <tr><th>Time</th><th>Topic</th><th>Presenter</th><th>Notes</th></tr>
+              <tr>
+                <td>10:00</td>
+                <td>Launch plan</td>
+                <td>Sayed</td>
+                <td>
+                  <ul>
+                    <li>Confirm scope</li>
+                    <li>Assign owners</li>
+                  </ul>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        `,
+      },
+    },
+  };
+
+  assert.deepEqual(parseMeetingNotePage(page).discussionTopics[0].notes, [
+    "Confirm scope",
+    "Assign owners",
+  ]);
+});
+
 test("parseMeetingNotePage keeps Related info labels separate from link text", () => {
   const page = {
     id: "related-info-link-labels",

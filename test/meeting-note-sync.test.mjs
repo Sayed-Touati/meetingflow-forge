@@ -247,3 +247,60 @@ test("syncMeetingNotesFromConfluence resolves account ID presenter names before 
     },
   ]);
 });
+
+test("syncMeetingNotesFromConfluence resolves multiple presenters in one topic row", async () => {
+  const kvs = createMemoryKvs();
+  const fetchedAccountIds = [];
+  const searchPages = async () =>
+    createResponse({
+      results: [{ content: { id: "meeting-page" } }],
+    });
+  const fetchPage = async () =>
+    createResponse({
+      id: "meeting-page",
+      title: "Multi presenter sync",
+      sourceTemplateEntityId: MEETING_NOTES_TEMPLATE_ID,
+      body: {
+        storage: {
+          value: `
+            <h2>Discussion topics</h2>
+            <table>
+              <tbody>
+                <tr><th>Time</th><th>Topic</th><th>Presenter</th><th>Notes</th></tr>
+                <tr>
+                  <td>10:00</td>
+                  <td>Launch plan</td>
+                  <td>
+                    <ac:link><ri:user ri:account-id="account-a" /></ac:link>
+                    <ac:link><ri:user ri:account-id="account-b" /></ac:link>
+                  </td>
+                  <td>Both presenters should resolve.</td>
+                </tr>
+              </tbody>
+            </table>
+          `,
+        },
+      },
+    });
+  const fetchUser = async (accountId) => {
+    fetchedAccountIds.push(accountId);
+
+    return createResponse({
+      accountId,
+      displayName: accountId === "account-a" ? "Sayed Touati" : "Iheb Touati",
+    });
+  };
+
+  await syncMeetingNotesFromConfluence({
+    fetchPage,
+    fetchUser,
+    kvsClient: kvs,
+    searchPages,
+  });
+
+  assert.deepEqual(fetchedAccountIds, ["account-a", "account-b"]);
+  assert.deepEqual(kvs.values.get("meeting-note:meeting-page").discussionTopics[0].presenter, [
+    { accountId: "account-a", displayName: "Sayed Touati" },
+    { accountId: "account-b", displayName: "Iheb Touati" },
+  ]);
+});

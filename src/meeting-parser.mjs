@@ -247,15 +247,36 @@ function parsePersonCell(cellNode) {
     return null;
   }
 
-  const mentionedUser = findFirstTag(cellNode.children ?? [], "ri:user");
+  const mentionedUsers = findAllTags(cellNode.children ?? [], "ri:user");
+  const mentionedPeople = mentionedUsers.map(normalizePersonFromUserNode).filter(Boolean);
 
-  if (mentionedUser) {
-    return normalizePersonFromUserNode(mentionedUser);
+  if (mentionedPeople.length === 1) {
+    return mentionedPeople[0];
+  }
+
+  if (mentionedPeople.length > 1) {
+    return mentionedPeople;
   }
 
   const displayName = getNodeText(cellNode);
 
   return displayName ? { displayName } : null;
+}
+
+function parseNotesCell(cellNode) {
+  if (!cellNode) {
+    return "";
+  }
+
+  const listItems = findAllTags(cellNode.children ?? [], "li")
+    .map(getNodeText)
+    .filter(Boolean);
+
+  if (listItems.length > 0) {
+    return listItems;
+  }
+
+  return getNodeText(cellNode);
 }
 
 function parseDiscussionTopics(sectionNodes) {
@@ -290,7 +311,7 @@ function parseDiscussionTopics(sectionNodes) {
         time: timeCell?.text ?? "",
         topic: topicCell?.text ?? "",
         presenter: parsePersonCell(presenterCell?.node),
-        notes: notesCell?.text ?? "",
+        notes: parseNotesCell(notesCell?.node),
       };
     })
     .filter((topic) => topic.time || topic.topic || topic.presenter || topic.notes);

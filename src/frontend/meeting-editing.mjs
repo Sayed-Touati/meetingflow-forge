@@ -10,6 +10,10 @@ export const EDIT_MEETING_FIELD_LABELS = {
 };
 
 export function getEditableInputValue(value) {
+    if (Array.isArray(value)) {
+        return value.map(getEditableInputValue).filter(Boolean).join("; ");
+    }
+
     if (value?.target && "value" in value.target) {
         return value.target.value ?? "";
     }
@@ -57,6 +61,10 @@ function textLines(value) {
 }
 
 function getPersonLabel(person) {
+    if (Array.isArray(person)) {
+        return person.map(getPersonLabel).filter(Boolean).join(", ");
+    }
+
     if (typeof person === "string") {
         return person;
     }

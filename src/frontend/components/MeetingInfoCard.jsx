@@ -108,6 +108,10 @@ function formatTime({ startTime, endTime }) {
 }
 
 function getParticipantIdentifier(participant) {
+    if (Array.isArray(participant)) {
+        return participant.map(getParticipantIdentifier).filter(Boolean).join("-");
+    }
+
     if (typeof participant === "string") {
         return participant;
     }
@@ -122,6 +126,10 @@ function getParticipantIdentifier(participant) {
 }
 
 function getParticipantLabel(participant) {
+    if (Array.isArray(participant)) {
+        return participant.map(getParticipantLabel).filter(Boolean).join(", ");
+    }
+
     if (typeof participant === "string") {
         return participant;
     }
@@ -195,6 +203,38 @@ function ParticipantsList({ participants }) {
     );
 }
 
+function PresenterCell({ presenter }) {
+    if (Array.isArray(presenter)) {
+        return (
+            <Stack space="space.050">
+                {presenter.map((person, index) => (
+                    <Text key={getParticipantIdentifier(person) || `presenter-${index}`}>
+                        {getParticipantLabel(person)}
+                    </Text>
+                ))}
+            </Stack>
+        );
+    }
+
+    return getParticipantLabel(presenter) || "-";
+}
+
+function NotesCell({ notes }) {
+    if (Array.isArray(notes)) {
+        return (
+            <List>
+                {notes.map((note, index) => (
+                    <ListItem key={`note-${index}`}>
+                        <Text>{note}</Text>
+                    </ListItem>
+                ))}
+            </List>
+        );
+    }
+
+    return notes || "-";
+}
+
 function ListField({ emptyMessage, icon, items, label, showCount = true }) {
     const normalizedItems = normalizeListItems(items);
 
@@ -241,9 +281,9 @@ function DiscussionTopicsTable({ topics }) {
                     { key: `topic-${index}`, content: topic.topic || "-" },
                     {
                         key: `presenter-${index}`,
-                        content: getParticipantLabel(topic.presenter) || "-",
+                        content: <PresenterCell presenter={topic.presenter} />,
                     },
-                    { key: `notes-${index}`, content: topic.notes || "-" },
+                    { key: `notes-${index}`, content: <NotesCell notes={topic.notes} /> },
                 ],
             }))}
         />

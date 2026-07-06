@@ -26,6 +26,17 @@ async function getDisplayNameForAccountId(accountId, { displayNamesByAccountId, 
 }
 
 async function resolvePersonDisplayName(person, { displayNamesByAccountId, fetchUser }) {
+  if (Array.isArray(person)) {
+    return Promise.all(
+      person.map((personItem) =>
+        resolvePersonDisplayName(personItem, {
+          displayNamesByAccountId,
+          fetchUser,
+        }),
+      ),
+    );
+  }
+
   if (!person?.accountId) {
     return person;
   }
