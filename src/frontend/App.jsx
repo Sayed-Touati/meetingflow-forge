@@ -16,6 +16,14 @@ import AppHeader from "./components/AppHeader";
 import EditMeetingModal from "./components/EditMeetingModal";
 import MeetingDetailsSection from "./components/MeetingDetailsSection";
 import MeetingSelector from "./components/MeetingSelector";
+import {
+    getEditableInputValue,
+    parseDiscussionTopicsText,
+    parseListText,
+    parseParticipantsText,
+    parseRelatedInfoText,
+    relatedLinksFromResources,
+} from "./meeting-editing.mjs";
 
 function getGoogleMeetLink(meetingData) {
     const googleMeetResource = meetingData?.resources?.find(
@@ -31,13 +39,6 @@ function getGoogleMeetLink(meetingData) {
     }
 
     return meetingData?.relatedLinks?.find((link) => link.type === "google-meet");
-}
-
-function splitLines(value) {
-    return value
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean);
 }
 
 export default function App() {
@@ -115,22 +116,48 @@ export default function App() {
     const updateMeetingField = (fieldName, value) => {
         setEditableMeetingData((currentMeetingData) => ({
             ...currentMeetingData,
-            [fieldName]: value,
+            [fieldName]: getEditableInputValue(value),
         }));
     };
 
     const updateGoals = (value) => {
         setEditableMeetingData((currentMeetingData) => ({
             ...currentMeetingData,
-            goals: splitLines(value),
+            goals: parseListText(value),
         }));
     };
 
     const updateBrainstorm = (value) => {
         setEditableMeetingData((currentMeetingData) => ({
             ...currentMeetingData,
-            brainstorm: splitLines(value),
+            brainstorm: parseListText(value),
         }));
+    };
+
+    const updateParticipants = (value) => {
+        setEditableMeetingData((currentMeetingData) => ({
+            ...currentMeetingData,
+            participants: parseParticipantsText(value),
+        }));
+    };
+
+    const updateDiscussionTopics = (value) => {
+        setEditableMeetingData((currentMeetingData) => ({
+            ...currentMeetingData,
+            discussionTopics: parseDiscussionTopicsText(value),
+        }));
+    };
+
+    const updateRelatedInfo = (value) => {
+        setEditableMeetingData((currentMeetingData) => {
+            const resources = parseRelatedInfoText(value);
+
+            return {
+                ...currentMeetingData,
+                resources,
+                relatedLinks: relatedLinksFromResources(resources),
+            };
+        });
     };
 
     const handleDateChange = (date) => {
@@ -253,8 +280,11 @@ export default function App() {
                     onCancel={() => setIsEditModalOpen(false)}
                     onSave={handleSaveModalChanges}
                     onUpdateBrainstorm={updateBrainstorm}
+                    onUpdateDiscussionTopics={updateDiscussionTopics}
                     onUpdateField={updateMeetingField}
                     onUpdateGoals={updateGoals}
+                    onUpdateParticipants={updateParticipants}
+                    onUpdateRelatedInfo={updateRelatedInfo}
                 />
             ) : null}
 
