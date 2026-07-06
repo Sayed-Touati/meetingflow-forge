@@ -13,6 +13,18 @@ import MeetingDetailsSection from "./components/MeetingDetailsSection";
 import MeetingSelector from "./components/MeetingSelector";
 
 function getGoogleMeetLink(meetingData) {
+    const googleMeetResource = meetingData?.resources?.find(
+        (resource) => resource.type === "google-meet",
+    );
+
+    if (googleMeetResource) {
+        return {
+            href: googleMeetResource.url,
+            text: googleMeetResource.title,
+            type: googleMeetResource.type,
+        };
+    }
+
     return meetingData?.relatedLinks?.find((link) => link.type === "google-meet");
 }
 
@@ -101,6 +113,13 @@ export default function App() {
         }));
     };
 
+    const updateBrainstorm = (value) => {
+        setEditableMeetingData((currentMeetingData) => ({
+            ...currentMeetingData,
+            brainstorm: splitLines(value),
+        }));
+    };
+
     const handleDateChange = (date) => {
         const nextDate = date ?? "";
 
@@ -186,6 +205,7 @@ export default function App() {
                     meetingData={displayedMeetingData}
                     onCancel={() => setIsEditModalOpen(false)}
                     onSave={handleSaveModalChanges}
+                    onUpdateBrainstorm={updateBrainstorm}
                     onUpdateField={updateMeetingField}
                     onUpdateGoals={updateGoals}
                 />

@@ -39,9 +39,15 @@ export async function resolveParticipantDisplayNames(meetingNote, { fetchUser })
 
       const displayName = displayNamesByAccountId.get(participant.accountId);
 
+      const { name, ...normalizedParticipant } = participant;
+
       return {
-        ...participant,
-        name: displayName || participant.name,
+        ...normalizedParticipant,
+        // The parser normalizes people with displayName because that mirrors
+        // Atlassian's user payloads and keeps the meeting object ready for
+        // later attendee-mapping workflows. The name fallback preserves older
+        // records that were saved before this normalized shape existed.
+        displayName: displayName || participant.displayName || name,
       };
     }),
   );

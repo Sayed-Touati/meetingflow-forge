@@ -17,6 +17,9 @@ test("parseMeetingNotePage returns structured meeting fields from Confluence sto
           <h2><ac:emoticon ac:name="calendar_spiral" />&nbsp;Date</h2>
           <p><time datetime="2026-07-05" /></p>
 
+          <h2>Time</h2>
+          <p>10:00-11:00</p>
+
           <h2>Participants</h2>
           <p>
             <ac:link><ri:user ri:account-id="abc-123" /><ac:plain-text-link-body><![CDATA[Sayed Touati]]></ac:plain-text-link-body></ac:link>
@@ -29,11 +32,22 @@ test("parseMeetingNotePage returns structured meeting fields from Confluence sto
             <li>Prepare calendar handoff</li>
           </ul>
 
+          <h2>Brainstorm</h2>
+          <ul>
+            <li>Should Slack notification be automatic?</li>
+            <li>Should edits update the calendar event?</li>
+          </ul>
+
           <h2>Discussion topics</h2>
           <table>
             <tbody>
               <tr><th>Time</th><th>Topic</th><th>Presenter</th><th>Notes</th></tr>
-              <tr><td>10:00</td><td>UI structure</td><td>Sayed</td><td>Keep it confirmation-focused.</td></tr>
+              <tr>
+                <td>10:00</td>
+                <td>UI structure</td>
+                <td><ac:link><ri:user ri:account-id="abc-123" /><ac:plain-text-link-body><![CDATA[Sayed Touati]]></ac:plain-text-link-body></ac:link></td>
+                <td>Keep it confirmation-focused.</td>
+              </tr>
               <tr><td>10:15</td><td>Calendar link</td><td>Iheb</td><td>Extract the Google Meet URL.</td></tr>
             </tbody>
           </table>
@@ -52,24 +66,47 @@ test("parseMeetingNotePage returns structured meeting fields from Confluence sto
     pageId: "12345",
     title: "Design sync",
     date: "2026-07-05",
+    startTime: "10:00",
+    endTime: "11:00",
     pageUrl: "https://example.atlassian.net/wiki/spaces/TEAM/pages/12345/Design+sync",
     participants: [
-      { accountId: "abc-123", name: "Sayed Touati" },
-      { accountId: "def-456", name: "Iheb Touati" },
+      { accountId: "abc-123", displayName: "Sayed Touati" },
+      { accountId: "def-456", displayName: "Iheb Touati" },
     ],
     goals: ["Confirm meeting workflow", "Prepare calendar handoff"],
+    brainstorm: [
+      "Should Slack notification be automatic?",
+      "Should edits update the calendar event?",
+    ],
     discussionTopics: [
       {
         time: "10:00",
         topic: "UI structure",
-        presenter: "Sayed",
+        presenter: {
+          accountId: "abc-123",
+          displayName: "Sayed Touati",
+        },
         notes: "Keep it confirmation-focused.",
       },
       {
         time: "10:15",
         topic: "Calendar link",
-        presenter: "Iheb",
+        presenter: {
+          displayName: "Iheb",
+        },
         notes: "Extract the Google Meet URL.",
+      },
+    ],
+    resources: [
+      {
+        title: "Google Meet",
+        url: "https://meet.google.com/abc-defg-hij",
+        type: "google-meet",
+      },
+      {
+        title: "the spec",
+        url: "https://example.com/spec",
+        type: "link",
       },
     ],
     relatedLinks: [
@@ -86,9 +123,11 @@ test("parseMeetingNotePage returns structured meeting fields from Confluence sto
     ],
     sections: {
       Date: "",
+      Time: "10:00-11:00",
       Participants: "Sayed Touati Iheb Touati",
       Goals: "Confirm meeting workflow Prepare calendar handoff",
-      "Discussion topics": "10:00 UI structure Sayed Keep it confirmation-focused. 10:15 Calendar link Iheb Extract the Google Meet URL.",
+      Brainstorm: "Should Slack notification be automatic? Should edits update the calendar event?",
+      "Discussion topics": "10:00 UI structure Sayed Touati Keep it confirmation-focused. 10:15 Calendar link Iheb Extract the Google Meet URL.",
       "Related info": "Join with Google Meet and read the spec.",
     },
   });
@@ -115,10 +154,47 @@ test("parseMeetingNotePage extracts participant mentions from supported Confluen
   };
 
   assert.deepEqual(parseMeetingNotePage(page).participants, [
-    { accountId: "abc-123", name: "abc-123" },
-    { accountId: "def-456", name: "Dana Forge" },
-    { userKey: "legacy-user-key", name: "legacy-user-key" },
-    { username: "old.username", name: "old.username" },
-    { accountId: "bare-user-node", name: "bare-user-node" },
+    { accountId: "abc-123", displayName: "abc-123" },
+    { accountId: "def-456", displayName: "Dana Forge" },
+    { userKey: "legacy-user-key", displayName: "legacy-user-key" },
+    { username: "old.username", displayName: "old.username" },
+    { accountId: "bare-user-node", displayName: "bare-user-node" },
+  ]);
+});
+
+test("parseMeetingNotePage handles missing optional structured sections safely", () => {
+  const page = {
+    id: "empty-shapes",
+    title: "Empty sync",
+    body: {
+      storage: {
+        value: `
+          <h2>Date</h2>
+          <p><time datetime="2026-07-06" /></p>
+          <h2>Discussion topics</h2>
+          <table>
+            <tbody>
+              <tr><th>Time</th><th>Topic</th><th>Presenter</th><th>Notes</th></tr>
+              <tr><td>12:00</td><td></td><td></td><td></td></tr>
+            </tbody>
+          </table>
+        `,
+      },
+    },
+  };
+
+  const meetingNote = parseMeetingNotePage(page);
+
+  assert.deepEqual(meetingNote.participants, []);
+  assert.deepEqual(meetingNote.goals, []);
+  assert.deepEqual(meetingNote.brainstorm, []);
+  assert.deepEqual(meetingNote.resources, []);
+  assert.deepEqual(meetingNote.discussionTopics, [
+    {
+      time: "12:00",
+      topic: "",
+      presenter: null,
+      notes: "",
+    },
   ]);
 });

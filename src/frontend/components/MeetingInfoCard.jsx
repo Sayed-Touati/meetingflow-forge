@@ -2,15 +2,13 @@ import React from "react";
 import {
     Badge,
     Box,
+    Button,
     DynamicTable,
     Heading,
-    Icon,
     Inline,
     Link,
     List,
     ListItem,
-    Pressable,
-    SectionMessage,
     Stack,
     Tag,
     TagGroup,
@@ -18,44 +16,6 @@ import {
     xcss,
 } from "@forge/react";
 import MeetingField from "./MeetingField";
-
-const editButtonStyles = xcss({
-    backgroundColor: "color.background.accent.blue.subtlest",
-    borderColor: "color.border.accent.blue",
-    borderRadius: "border.radius.100",
-    borderStyle: "solid",
-    borderWidth: "border.width",
-    color: "color.text.accent.blue",
-    paddingBlock: "space.075",
-    paddingInline: "space.150",
-
-    ":hover": {
-        backgroundColor: "color.background.accent.blue.subtlest.hovered",
-    },
-
-    ":active": {
-        backgroundColor: "color.background.accent.blue.subtlest.pressed",
-    },
-});
-
-const detailsButtonStyles = xcss({
-    backgroundColor: "color.background.neutral.subtle",
-    borderColor: "color.border",
-    borderRadius: "border.radius.100",
-    borderStyle: "solid",
-    borderWidth: "border.width",
-    color: "color.text",
-    paddingBlock: "space.075",
-    paddingInline: "space.150",
-
-    ":hover": {
-        backgroundColor: "color.background.neutral.subtle.hovered",
-    },
-
-    ":active": {
-        backgroundColor: "color.background.neutral.subtle.pressed",
-    },
-});
 
 const stickyHeaderStyles = xcss({
     backgroundColor: "color.background.input",
@@ -66,33 +26,123 @@ const stickyHeaderStyles = xcss({
     zIndex: "elevation.surface",
 });
 
-function createTextFromList(items, formatter = (item) => item) {
-    return (items ?? []).map(formatter).join("\n");
+const summaryFieldStyles = xcss({
+    minWidth: "180px",
+});
+
+function normalizeListItems(items) {
+    if (Array.isArray(items)) {
+        return items.filter(Boolean);
+    }
+
+    return items ? [items] : [];
+}
+
+function formatDate(value) {
+    if (!value) {
+        return "No date extracted.";
+    }
+
+    const date = new Date(`${value}T00:00:00Z`);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat("en-US", {
+        day: "numeric",
+        month: "short",
+        timeZone: "UTC",
+        year: "numeric",
+    }).format(date);
+}
+
+function formatTime({ startTime, endTime }) {
+    if (startTime && endTime) {
+        return `${startTime} - ${endTime}`;
+    }
+
+    return startTime || "No time extracted.";
 }
 
 function getParticipantIdentifier(participant) {
-    return participant.accountId || participant.userKey || participant.username || participant.name;
+    if (typeof participant === "string") {
+        return participant;
+    }
+
+    return (
+        participant?.accountId ||
+        participant?.userKey ||
+        participant?.username ||
+        participant?.displayName ||
+        participant?.name
+    );
 }
 
 function getParticipantLabel(participant) {
-    return participant.name || getParticipantIdentifier(participant);
+    if (typeof participant === "string") {
+        return participant;
+    }
+
+    return participant?.displayName || participant?.name || getParticipantIdentifier(participant);
 }
 
 function EmptyValue({ children }) {
+    return <Text color="color.text.subtle">{children}</Text>;
+}
+
+function StructuredSection({ label, children }) {
     return (
-        <SectionMessage appearance="warning" title="Needs review">
-            <Text>{children}</Text>
-        </SectionMessage>
+        <Stack space="space.050">
+            <Text color="color.text.subtle" size="small" weight="medium">
+                {label}
+            </Text>
+            {children}
+        </Stack>
+    );
+}
+
+function ParticipantsList({ participants }) {
+    if (!participants?.length) {
+        return <EmptyValue>No participants were extracted yet.</EmptyValue>;
+    }
+
+    return (
+        <TagGroup>
+            {participants.map((participant, index) => (
+                <Tag
+                    key={getParticipantIdentifier(participant) || `participant-${index}`}
+                    text={getParticipantLabel(participant)}
+                    color="blue-light"
+                />
+            ))}
+        </TagGroup>
+    );
+}
+
+function ListField({ emptyMessage, items, label }) {
+    const normalizedItems = normalizeListItems(items);
+
+    return (
+        <StructuredSection label={label}>
+            {normalizedItems.length ? (
+                <List>
+                    {normalizedItems.map((item, index) => (
+                        <ListItem key={`${label}-${index}`}>
+                            <Text>{item}</Text>
+                        </ListItem>
+                    ))}
+                </List>
+            ) : (
+                <EmptyValue>{emptyMessage}</EmptyValue>
+            )}
+        </StructuredSection>
     );
 }
 
 function DiscussionTopicsTable({ topics }) {
     if (!topics?.length) {
-        return (
-            <EmptyValue>
-                No discussion topic rows were extracted. Check the source meeting note table.
-            </EmptyValue>
-        );
+        return <EmptyValue>No discussion topic rows were extracted yet.</EmptyValue>;
     }
 
     return (
@@ -110,7 +160,10 @@ function DiscussionTopicsTable({ topics }) {
                 cells: [
                     { key: `time-${index}`, content: topic.time || "-" },
                     { key: `topic-${index}`, content: topic.topic || "-" },
-                    { key: `presenter-${index}`, content: topic.presenter || "-" },
+                    {
+                        key: `presenter-${index}`,
+                        content: getParticipantLabel(topic.presenter) || "-",
+                    },
                     { key: `notes-${index}`, content: topic.notes || "-" },
                 ],
             }))}
@@ -118,26 +171,37 @@ function DiscussionTopicsTable({ topics }) {
     );
 }
 
-function RelatedLinks({ links }) {
-    if (!links?.length) {
-        return (
-            <EmptyValue>
-                No related links were extracted. Add the meeting link to the Confluence note,
-                then refresh this page.
-            </EmptyValue>
-        );
+function normalizeResources(meetingData) {
+    if (meetingData.resources?.length) {
+        return meetingData.resources;
+    }
+
+    return (meetingData.relatedLinks ?? []).map((link) => ({
+        title: link.text || link.href,
+        url: link.href,
+        type: link.type,
+    }));
+}
+
+function ResourcesList({ resources }) {
+    if (!resources?.length) {
+        return <EmptyValue>No resources were extracted yet.</EmptyValue>;
     }
 
     return (
         <List>
-            {links.map((link) => (
-                <ListItem key={link.href}>
-                    <Inline space="space.100" alignBlock="center">
-                        <Link href={link.href} openNewTab>
-                            {link.text || link.href}
-                        </Link>
-                        <Badge appearance={link.type === "google-meet" ? "primary" : "default"}>
-                            {link.type === "google-meet" ? "Google Meet" : "Link"}
+            {resources.map((resource, index) => (
+                <ListItem key={resource.url || `${resource.title}-${index}`}>
+                    <Inline space="space.100" alignBlock="center" shouldWrap>
+                        {resource.url ? (
+                            <Link href={resource.url} openNewTab>
+                                {resource.title || resource.url}
+                            </Link>
+                        ) : (
+                            <Text>{resource.title || "Untitled resource"}</Text>
+                        )}
+                        <Badge appearance={resource.type === "google-meet" ? "primary" : "default"}>
+                            {resource.type === "google-meet" ? "Google Meet" : resource.url ? "Link" : "No URL"}
                         </Badge>
                     </Inline>
                 </ListItem>
@@ -146,19 +210,15 @@ function RelatedLinks({ links }) {
     );
 }
 
-function SectionText({ value }) {
-    return value ? <Text>{value}</Text> : <Text color="color.text.subtle">Not found.</Text>;
-}
-
 export default function MeetingInfoCard({
     isDetailsVisible,
     meetingData,
     onEdit,
     onToggleDetails,
 }) {
-    const sections = meetingData.sections ?? {};
-    const goalsText = createTextFromList(meetingData.goals);
     const detailsToggleLabel = isDetailsVisible ? "Hide details" : "Show details";
+    const meetingTime = formatTime(meetingData);
+    const resources = normalizeResources(meetingData);
 
     return (
         <Stack space="space.200">
@@ -168,90 +228,79 @@ export default function MeetingInfoCard({
                         <Heading as="h2">Meeting information</Heading>
                         <Inline space="space.100" alignBlock="center">
                             <Badge appearance="primary">
-                                {meetingData.date || "No date"}
+                                {formatDate(meetingData.date)}
                             </Badge>
+                            {meetingData.startTime ? <Badge>{meetingTime}</Badge> : null}
                         </Inline>
                     </Stack>
 
                     <Inline space="space.100" alignBlock="center">
-                        <Pressable onClick={onToggleDetails}>
-                            <Box xcss={detailsButtonStyles}>
-                                <Inline space="space.050" alignBlock="center">
-                                    <Icon
-                                        glyph={isDetailsVisible ? "chevron-up" : "chevron-down"}
-                                        label={detailsToggleLabel}
-                                        size="small"
-                                    />
-                                    <Text weight="medium">{detailsToggleLabel}</Text>
-                                </Inline>
-                            </Box>
-                        </Pressable>
+                        <Button
+                            appearance="subtle"
+                            icon={isDetailsVisible ? "chevron-up" : "chevron-down"}
+                            iconPosition="before"
+                            onClick={onToggleDetails}
+                        >
+                            {detailsToggleLabel}
+                        </Button>
 
-                        <Pressable onClick={onEdit}>
-                            <Box xcss={editButtonStyles}>
-                                <Inline space="space.050" alignBlock="center">
-                                    <Icon glyph="edit-filled" label="Edit meeting details" size="small" />
-                                    <Text color="color.text.accent.blue" weight="medium">
-                                        Edit
-                                    </Text>
-                                </Inline>
-                            </Box>
-                        </Pressable>
+                        <Button
+                            appearance="primary"
+                            icon="edit-filled"
+                            iconPosition="before"
+                            onClick={onEdit}
+                        >
+                            Edit
+                        </Button>
                     </Inline>
                 </Inline>
             </Box>
 
             {isDetailsVisible ? (
                 <Stack space="space.200">
-                    <MeetingField label="Title">
-                        <Text>{meetingData.title || "Untitled meeting note"}</Text>
-                    </MeetingField>
+                    <Inline space="space.300" rowSpace="space.100" shouldWrap>
+                        <Box xcss={summaryFieldStyles}>
+                            <MeetingField label="Title">
+                                <Text>{meetingData.title || "Untitled meeting note"}</Text>
+                            </MeetingField>
+                        </Box>
 
-                    <MeetingField label="Date">
-                        <Text>{meetingData.date || "No date extracted."}</Text>
-                    </MeetingField>
+                        <Box xcss={summaryFieldStyles}>
+                            <MeetingField label="Date">
+                                <Text>{formatDate(meetingData.date)}</Text>
+                            </MeetingField>
+                        </Box>
 
-                    <MeetingField label="Participants">
-                        {meetingData.participants?.length ? (
-                            <TagGroup>
-                                {meetingData.participants.map((participant) => (
-                                    <Tag
-                                        key={getParticipantIdentifier(participant)}
-                                        text={getParticipantLabel(participant)}
-                                        color="blue-light"
-                                    />
-                                ))}
-                            </TagGroup>
-                        ) : (
-                            <Text color="color.text.subtle">
-                                No participants were extracted yet.
-                            </Text>
-                        )}
-                    </MeetingField>
+                        <Box xcss={summaryFieldStyles}>
+                            <MeetingField label="Time">
+                                <Text>{meetingTime}</Text>
+                            </MeetingField>
+                        </Box>
+                    </Inline>
 
-                    <MeetingField label="Goals">
-                        {goalsText ? (
-                            <Text>{goalsText}</Text>
-                        ) : (
-                            <Text color="color.text.subtle">No goals were extracted yet.</Text>
-                        )}
-                    </MeetingField>
+                    <StructuredSection label="Participants">
+                        <ParticipantsList participants={meetingData.participants} />
+                    </StructuredSection>
 
-                    <MeetingField label="Brainstorm">
-                        <SectionText value={sections.Brainstorm} />
-                    </MeetingField>
+                    <ListField
+                        emptyMessage="No goals were extracted yet."
+                        items={meetingData.goals}
+                        label="Goals"
+                    />
 
-                    <MeetingField label="Discussion topics">
+                    <ListField
+                        emptyMessage="No brainstorm items were extracted yet."
+                        items={meetingData.brainstorm}
+                        label="Brainstorm"
+                    />
+
+                    <StructuredSection label="Discussion topics">
                         <DiscussionTopicsTable topics={meetingData.discussionTopics} />
-                    </MeetingField>
+                    </StructuredSection>
 
-                    <MeetingField label="Resources">
-                        <SectionText value={sections.Resources ?? sections["Related info"]} />
-                    </MeetingField>
-
-                    <MeetingField label="Meeting links">
-                        <RelatedLinks links={meetingData.relatedLinks} />
-                    </MeetingField>
+                    <StructuredSection label="Resources">
+                        <ResourcesList resources={resources} />
+                    </StructuredSection>
                 </Stack>
             ) : null}
         </Stack>

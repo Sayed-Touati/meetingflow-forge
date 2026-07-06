@@ -63,6 +63,12 @@ function findFirstTag(nodes, tagName) {
   return DomUtils.findOne((node) => isTag(node, tagName), nodes);
 }
 
+function findDirectChildCells(rowNode) {
+  return (rowNode.children ?? []).filter(
+    (node) => isTag(node, "th") || isTag(node, "td"),
+  );
+}
+
 function findAncestorTag(node, tagName) {
   let currentNode = node?.parent;
 
@@ -109,10 +115,59 @@ function groupSectionsByHeading(documentRoot) {
   return sections;
 }
 
+function getSectionNodes(sectionNodesByHeading, headingNames) {
+  const normalizedHeadingNames = headingNames.map(normalizeHeader);
+  const matchingSection = Object.entries(sectionNodesByHeading).find(([heading]) =>
+    normalizedHeadingNames.includes(normalizeHeader(heading)),
+  );
+
+  return matchingSection?.[1] ?? [];
+}
+
+function getAllSectionNodes(sectionNodesByHeading, headingNames) {
+  const normalizedHeadingNames = headingNames.map(normalizeHeader);
+
+  return Object.entries(sectionNodesByHeading)
+    .filter(([heading]) => normalizedHeadingNames.includes(normalizeHeader(heading)))
+    .flatMap(([, nodes]) => nodes);
+}
+
 function parseDate(documentRoot) {
-  const timeNode = findFirstTag(documentRoot.children ?? [], "time");
+  const timeNode = findAllTags(documentRoot.children ?? [], "time").find((node) =>
+    /^\d{4}-\d{2}-\d{2}/.test(node.attribs?.datetime ?? ""),
+  );
 
   return timeNode?.attribs?.datetime;
+}
+
+function normalizePersonFromUserNode(userNode) {
+  const accountId = userNode.attribs?.["ri:account-id"];
+  const userKey = userNode.attribs?.["ri:userkey"];
+  const username = userNode.attribs?.["ri:username"];
+  const participantId = accountId || userKey || username;
+
+  if (!participantId) {
+    return null;
+  }
+
+  // Confluence Cloud usually stores mentions as:
+  // <ac:link><ri:user ri:account-id="..." /></ac:link>
+  // Some pages also include an optional link body with the visible name.
+  // When that body is absent, falling back to the identifier is more useful
+  // than returning an empty string to the confirmation UI.
+  const linkNode = findAncestorTag(userNode, "ac:link");
+  const visibleName = linkNode ? getNodeText(linkNode) : "";
+
+  return {
+    ...(accountId ? { accountId } : {}),
+    ...(userKey ? { userKey } : {}),
+    ...(username ? { username } : {}),
+    displayName: visibleName || participantId,
+  };
+}
+
+function getPersonIdentifier(person) {
+  return person?.accountId || person?.userKey || person?.username || person?.displayName;
 }
 
 function parseParticipants(sectionNodes) {
@@ -121,10 +176,8 @@ function parseParticipants(sectionNodes) {
 
   return userNodes
     .map((userNode) => {
-      const accountId = userNode.attribs?.["ri:account-id"];
-      const userKey = userNode.attribs?.["ri:userkey"];
-      const username = userNode.attribs?.["ri:username"];
-      const participantId = accountId || userKey || username;
+      const participant = normalizePersonFromUserNode(userNode);
+      const participantId = getPersonIdentifier(participant);
 
       if (!participantId || seenParticipantIds.has(participantId)) {
         return null;
@@ -132,25 +185,12 @@ function parseParticipants(sectionNodes) {
 
       seenParticipantIds.add(participantId);
 
-      // Confluence Cloud usually stores mentions as:
-      // <ac:link><ri:user ri:account-id="..." /></ac:link>
-      // Some pages also include an optional link body with the visible name.
-      // When that body is absent, falling back to the identifier is more useful
-      // than returning an empty string to the confirmation UI.
-      const linkNode = findAncestorTag(userNode, "ac:link");
-      const visibleName = linkNode ? getNodeText(linkNode) : "";
-
-      return {
-        ...(accountId ? { accountId } : {}),
-        ...(userKey ? { userKey } : {}),
-        ...(username ? { username } : {}),
-        name: visibleName || participantId,
-      };
+      return participant;
     })
     .filter(Boolean);
 }
 
-function parseGoals(sectionNodes) {
+function parseListSection(sectionNodes) {
   const listItems = findAllTags(sectionNodes, "li");
 
   if (listItems.length > 0) {
@@ -162,8 +202,58 @@ function parseGoals(sectionNodes) {
   return fallbackText ? [fallbackText] : [];
 }
 
+function parseMeetingTime(sectionNodesByHeading) {
+  const timeText = getNodesText(
+    getSectionNodes(sectionNodesByHeading, ["Time", "Date and time", "When"]),
+  );
+  const timeRangeMatch = timeText.match(
+    /(\d{1,2}:\d{2}(?:\s*[ap]m)?)\s*(?:-|–|—|to)\s*(\d{1,2}:\d{2}(?:\s*[ap]m)?)/i,
+  );
+
+  if (timeRangeMatch) {
+    return {
+      startTime: cleanText(timeRangeMatch[1]),
+      endTime: cleanText(timeRangeMatch[2]),
+    };
+  }
+
+  const singleTimeMatch = timeText.match(/(\d{1,2}:\d{2}(?:\s*[ap]m)?)/i);
+
+  return singleTimeMatch
+    ? {
+        startTime: cleanText(singleTimeMatch[1]),
+        endTime: "",
+      }
+    : {
+        startTime: "",
+        endTime: "",
+      };
+}
+
 function normalizeHeader(value) {
   return cleanText(value).toLowerCase();
+}
+
+function getCellByHeader(row, headers, headerName) {
+  const cellIndex = headers.indexOf(headerName);
+
+  return cellIndex >= 0 ? row[cellIndex] : undefined;
+}
+
+function parsePersonCell(cellNode) {
+  if (!cellNode) {
+    return null;
+  }
+
+  const mentionedUser = findFirstTag(cellNode.children ?? [], "ri:user");
+
+  if (mentionedUser) {
+    return normalizePersonFromUserNode(mentionedUser);
+  }
+
+  const displayName = getNodeText(cellNode);
+
+  return displayName ? { displayName } : null;
 }
 
 function parseDiscussionTopics(sectionNodes) {
@@ -174,48 +264,123 @@ function parseDiscussionTopics(sectionNodes) {
   }
 
   const rows = findAllTags([tableNode], "tr").map((rowNode) =>
-    findAllTags(rowNode.children ?? [], "th")
-      .concat(findAllTags(rowNode.children ?? [], "td"))
-      .map(getNodeText),
+    findDirectChildCells(rowNode).map((cellNode) => ({
+      node: cellNode,
+      text: getNodeText(cellNode),
+    })),
   );
 
   if (rows.length < 2) {
     return [];
   }
 
-  const headers = rows[0].map(normalizeHeader);
+  const headers = rows[0].map((cell) => normalizeHeader(cell.text));
 
   return rows
     .slice(1)
-    .map((row) => ({
-      time: row[headers.indexOf("time")] ?? "",
-      topic: row[headers.indexOf("topic")] ?? "",
-      presenter: row[headers.indexOf("presenter")] ?? "",
-      notes: row[headers.indexOf("notes")] ?? "",
-    }))
-    .filter((topic) => Object.values(topic).some(Boolean));
+    .map((row) => {
+      const timeCell = getCellByHeader(row, headers, "time");
+      const topicCell = getCellByHeader(row, headers, "topic");
+      const presenterCell = getCellByHeader(row, headers, "presenter");
+      const notesCell = getCellByHeader(row, headers, "notes");
+
+      return {
+        time: timeCell?.text ?? "",
+        topic: topicCell?.text ?? "",
+        presenter: parsePersonCell(presenterCell?.node),
+        notes: notesCell?.text ?? "",
+      };
+    })
+    .filter((topic) => topic.time || topic.topic || topic.presenter || topic.notes);
 }
 
 function linkType(href) {
   return href.includes("meet.google.com") ? "google-meet" : "link";
 }
 
-function parseRelatedLinks(sectionNodes) {
+function createResource({ title, url }) {
+  return {
+    title: title || url || "Untitled resource",
+    url: url ?? "",
+    type: url ? linkType(url) : "resource",
+  };
+}
+
+function parseAnchorResources(sectionNodes) {
   return findAllTags(sectionNodes, "a")
     .map((linkNode) => {
-      const href = linkNode.attribs?.href;
+      const url = linkNode.attribs?.href;
 
-      if (!href) {
-        return null;
-      }
-
-      return {
-        href,
-        text: getNodeText(linkNode),
-        type: linkType(href),
-      };
+      return url
+        ? createResource({
+            title: getNodeText(linkNode),
+            url,
+          })
+        : null;
     })
     .filter(Boolean);
+}
+
+function parseConfluenceUrlResources(sectionNodes) {
+  return findAllTags(sectionNodes, "ri:url")
+    .map((urlNode) => {
+      const url = urlNode.attribs?.["ri:value"];
+      const linkNode = findAncestorTag(urlNode, "ac:link");
+
+      return url
+        ? createResource({
+            title: linkNode ? getNodeText(linkNode) : "",
+            url,
+          })
+        : null;
+    })
+    .filter(Boolean);
+}
+
+function parseResources(sectionNodes) {
+  const resources = [];
+  const seenResourceKeys = new Set();
+  const addResource = (resource) => {
+    const resourceKey = resource.url || `${resource.title}-${resources.length}`;
+
+    if (!seenResourceKeys.has(resourceKey)) {
+      seenResourceKeys.add(resourceKey);
+      resources.push(resource);
+    }
+  };
+
+  parseAnchorResources(sectionNodes).forEach(addResource);
+  parseConfluenceUrlResources(sectionNodes).forEach(addResource);
+
+  // Meeting notes often keep supporting material in list items. When a list
+  // item has no URL, keep its label as a resource placeholder instead of
+  // losing it; the UI can show it as a non-clickable row.
+  findAllTags(sectionNodes, "li").forEach((listItemNode) => {
+    if (
+      findFirstTag(listItemNode.children ?? [], "a") ||
+      findFirstTag(listItemNode.children ?? [], "ri:url")
+    ) {
+      return;
+    }
+
+    const title = getNodeText(listItemNode);
+
+    if (title) {
+      addResource(createResource({ title, url: "" }));
+    }
+  });
+
+  return resources;
+}
+
+function resourcesToRelatedLinks(resources) {
+  return resources
+    .filter((resource) => resource.url)
+    .map((resource) => ({
+      href: resource.url,
+      text: resource.title,
+      type: resource.type,
+    }));
 }
 
 function stringifySections(sectionNodesByHeading) {
@@ -235,18 +400,29 @@ export function parseMeetingNotePage(page) {
     xmlMode: true,
   });
   const sectionNodesByHeading = groupSectionsByHeading(documentRoot);
+  const meetingTime = parseMeetingTime(sectionNodesByHeading);
+  const resources = parseResources(
+    getAllSectionNodes(sectionNodesByHeading, ["Resources", "Related info"]),
+  );
 
   return {
     pageId: page?.id,
     title: page?.title ?? "",
     date: parseDate(documentRoot),
+    ...meetingTime,
     pageUrl: getPageUrl(page),
-    participants: parseParticipants(sectionNodesByHeading.Participants ?? []),
-    goals: parseGoals(sectionNodesByHeading.Goals ?? []),
-    discussionTopics: parseDiscussionTopics(
-      sectionNodesByHeading["Discussion topics"] ?? [],
+    participants: parseParticipants(
+      getSectionNodes(sectionNodesByHeading, ["Participants"]),
     ),
-    relatedLinks: parseRelatedLinks(sectionNodesByHeading["Related info"] ?? []),
+    goals: parseListSection(getSectionNodes(sectionNodesByHeading, ["Goals"])),
+    brainstorm: parseListSection(
+      getSectionNodes(sectionNodesByHeading, ["Brainstorm"]),
+    ),
+    discussionTopics: parseDiscussionTopics(
+      getSectionNodes(sectionNodesByHeading, ["Discussion topics"]),
+    ),
+    resources,
+    relatedLinks: resourcesToRelatedLinks(resources),
     sections: stringifySections(sectionNodesByHeading),
   };
 }
