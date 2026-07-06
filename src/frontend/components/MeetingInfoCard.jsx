@@ -235,12 +235,11 @@ function NotesCell({ notes }) {
     return notes || "-";
 }
 
-function ListField({ emptyMessage, icon, items, label, showCount = true }) {
+function ListField({ emptyMessage, icon, items, label }) {
     const normalizedItems = normalizeListItems(items);
 
     return (
         <StructuredSectionWithCount
-            count={showCount ? normalizedItems.length : undefined}
             icon={icon}
             label={label}
         >
@@ -420,11 +419,9 @@ export default function MeetingInfoCard({
                             icon="lightbulb"
                             items={meetingData.brainstorm}
                             label="Brainstorm"
-                            showCount={false}
                         />
 
                         <StructuredSectionWithCount
-                            count={meetingData.discussionTopics?.length}
                             icon="table"
                             label="Discussion topics"
                         >
@@ -432,7 +429,6 @@ export default function MeetingInfoCard({
                         </StructuredSectionWithCount>
 
                         <StructuredSectionWithCount
-                            count={resources.length}
                             icon="link"
                             label="Related info"
                         >
