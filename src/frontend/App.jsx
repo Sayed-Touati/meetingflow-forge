@@ -129,6 +129,7 @@ export default function App() {
         <Stack space="space.300">
             <AppHeader
                 isInfoVisible={isAppInfoVisible}
+                onCloseInfo={() => setIsAppInfoVisible(false)}
                 onToggleInfo={() => setIsAppInfoVisible((isVisible) => !isVisible)}
             />
 
