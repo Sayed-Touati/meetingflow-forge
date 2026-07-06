@@ -6,8 +6,12 @@ You are building apps designed to be installed into a single customer site. The 
 
 # Code Style
 
-You should write apps using vanilla, idiomatic JavaScript.
-You should use verbose commentary in the code. Your comments should be such that an intermediate level JavaScript developers with limited Forge experience to understand.
+Write simple, idiomatic, maintainable JavaScript that fits the existing project.
+Use comments only when they clarify Forge-specific behavior, non-obvious decisions, or important constraints. Avoid noisy comments that restate what the code already says.
+
+# Test Discipline
+
+Keep development lean. For small, low-risk UI copy/layout tweaks, do not add new test files unless the user asks. Add focused tests for parser, storage, backend, security, or regression-prone behavior where they prevent real breakage.
 
 # Imports & Libraries
 
