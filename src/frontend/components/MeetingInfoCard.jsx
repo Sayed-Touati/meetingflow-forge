@@ -38,6 +38,25 @@ const editButtonStyles = xcss({
     },
 });
 
+const detailsButtonStyles = xcss({
+    backgroundColor: "color.background.neutral.subtle",
+    borderColor: "color.border",
+    borderRadius: "border.radius.100",
+    borderStyle: "solid",
+    borderWidth: "border.width",
+    color: "color.text",
+    paddingBlock: "space.075",
+    paddingInline: "space.150",
+
+    ":hover": {
+        backgroundColor: "color.background.neutral.subtle.hovered",
+    },
+
+    ":active": {
+        backgroundColor: "color.background.neutral.subtle.pressed",
+    },
+});
+
 function createTextFromList(items, formatter = (item) => item) {
     return (items ?? []).map(formatter).join("\n");
 }
@@ -130,6 +149,7 @@ export default function MeetingInfoCard({
 }) {
     const sections = meetingData.sections ?? {};
     const goalsText = createTextFromList(meetingData.goals);
+    const detailsToggleLabel = isDetailsVisible ? "Hide details" : "Show details";
 
     return (
         <Stack space="space.200">
@@ -138,25 +158,37 @@ export default function MeetingInfoCard({
                     <Heading as="h2">{meetingData.title || "Untitled meeting note"}</Heading>
                 </Stack>
 
-                <Pressable onClick={onEdit}>
-                    <Box xcss={editButtonStyles}>
-                        <Inline space="space.050" alignBlock="center">
-                            <Icon glyph="edit-filled" label="Edit meeting details" size="small" />
-                            <Text color="color.text.accent.blue" weight="medium">
-                                Edit
-                            </Text>
-                        </Inline>
-                    </Box>
-                </Pressable>
+                <Inline space="space.100" alignBlock="center">
+                    <Pressable onClick={onToggleDetails}>
+                        <Box xcss={detailsButtonStyles}>
+                            <Inline space="space.050" alignBlock="center">
+                                <Icon
+                                    glyph={isDetailsVisible ? "chevron-up" : "chevron-down"}
+                                    label={detailsToggleLabel}
+                                    size="small"
+                                />
+                                <Text weight="medium">{detailsToggleLabel}</Text>
+                            </Inline>
+                        </Box>
+                    </Pressable>
+
+                    <Pressable onClick={onEdit}>
+                        <Box xcss={editButtonStyles}>
+                            <Inline space="space.050" alignBlock="center">
+                                <Icon glyph="edit-filled" label="Edit meeting details" size="small" />
+                                <Text color="color.text.accent.blue" weight="medium">
+                                    Edit
+                                </Text>
+                            </Inline>
+                        </Box>
+                    </Pressable>
+                </Inline>
             </Inline>
 
             <Inline space="space.100" alignBlock="center">
                 <Badge appearance="primary">
                     {meetingData.date || "No date"}
                 </Badge>
-                <Pressable onClick={onToggleDetails}>
-                    {isDetailsVisible ? "Hide details" : "Show details"}
-                </Pressable>
             </Inline>
 
             {isDetailsVisible ? (
