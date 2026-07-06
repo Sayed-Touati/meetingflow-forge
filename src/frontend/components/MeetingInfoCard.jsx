@@ -1,20 +1,42 @@
 import React from "react";
 import {
     Badge,
-    Button,
+    Box,
     DynamicTable,
     Heading,
+    Icon,
     Inline,
     Link,
     List,
     ListItem,
+    Pressable,
     SectionMessage,
     Stack,
     Tag,
     TagGroup,
     Text,
+    xcss,
 } from "@forge/react";
 import MeetingField from "./MeetingField";
+
+const editButtonStyles = xcss({
+    backgroundColor: "color.background.accent.blue.subtlest",
+    borderColor: "color.border.accent.blue",
+    borderRadius: "border.radius.100",
+    borderStyle: "solid",
+    borderWidth: "border.width",
+    color: "color.text.accent.blue",
+    paddingBlock: "space.075",
+    paddingInline: "space.150",
+
+    ":hover": {
+        backgroundColor: "color.background.accent.blue.subtlest.hovered",
+    },
+
+    ":active": {
+        backgroundColor: "color.background.accent.blue.subtlest.pressed",
+    },
+});
 
 function createTextFromList(items, formatter = (item) => item) {
     return (items ?? []).map(formatter).join("\n");
@@ -108,18 +130,25 @@ export default function MeetingInfoCard({
                     <Heading as="h2">{meetingData.title || "Untitled meeting note"}</Heading>
                 </Stack>
 
-                <Button appearance="subtle" icon="edit" onClick={onEdit}>
-                    Edit
-                </Button>
+                <Pressable onClick={onEdit}>
+                    <Box xcss={editButtonStyles}>
+                        <Inline space="space.050" alignBlock="center">
+                            <Icon glyph="edit-filled" label="Edit meeting details" size="small" />
+                            <Text color="color.text.accent.blue" weight="medium">
+                                Edit
+                            </Text>
+                        </Inline>
+                    </Box>
+                </Pressable>
             </Inline>
 
             <Inline space="space.100" alignBlock="center">
                 <Badge appearance="primary">
                     {meetingData.date || "No date"}
                 </Badge>
-                <Button appearance="subtle" onClick={onToggleDetails}>
+                <Pressable onClick={onToggleDetails}>
                     {isDetailsVisible ? "Hide details" : "Show details"}
-                </Button>
+                </Pressable>
             </Inline>
 
             {isDetailsVisible ? (
