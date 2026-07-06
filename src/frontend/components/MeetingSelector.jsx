@@ -2,56 +2,94 @@ import React from "react";
 import {
     Button,
     DatePicker,
+    Heading,
     Inline,
     Label,
     Select,
     Stack,
-    Text,
 } from "@forge/react";
 
+
 export default function MeetingSelector({
-    isLoadingMeetings,
-    meetingOptions,
-    onClearDate,
-    onDateChange,
-    onMeetingChange,
-    selectedDate,
-}) {
+                                            isLoadingMeetings,
+                                            meetingOptions,
+                                            onClearDate,
+                                            onDateChange,
+                                            onMeetingChange,
+                                            selectedDate,
+                                        }) {
+    const hasMeetings = meetingOptions.length > 0;
+
     return (
         <Stack space="space.150">
-            <Inline space="space.200" alignBlock="end">
+
+            <Heading as="h2">
+                Choose a meeting
+            </Heading>
+
+            <Inline
+                space="space.150"
+                alignBlock="end"
+                shouldWrap
+            >
                 <Stack space="space.050">
-                    <Label labelFor="meeting-note">Meeting note page</Label>
+                    <Label labelFor="meeting-note">
+                        Meeting note
+                    </Label>
+
                     <Select
                         id="meeting-note"
                         name="meeting-note"
                         placeholder={
-                            isLoadingMeetings ? "Loading meeting notes..." : "Select a meeting note"
+                            isLoadingMeetings
+                                ? "Loading meeting notes..."
+                                : hasMeetings
+                                    ? "Select a meeting note"
+                                    : "No meeting notes found"
                         }
                         options={meetingOptions}
-                        isDisabled={isLoadingMeetings || meetingOptions.length === 0}
-                        onChange={(option) => onMeetingChange(option?.value)}
+                        isDisabled={
+                            isLoadingMeetings || !hasMeetings
+                        }
+                        onChange={(option) =>
+                            onMeetingChange(option?.value ?? null)
+                        }
                     />
                 </Stack>
-                <DatePicker
-                    key={selectedDate || "all-dates"}
-                    name="meeting-filter-date"
-                    label="Select date"
-                    description="Optional. Leave blank to show every extracted meeting note."
-                    defaultValue={selectedDate || undefined}
-                    onChange={onDateChange}
-                />
+
+
+                <Stack space="space.050">
+                    <Label labelFor="meeting-filter-date">
+                        Filter by date
+                    </Label>
+
+                    <Inline
+                        space="space.050"
+                        alignBlock="center"
+                    >
+                        <DatePicker
+                            id="meeting-filter-date"
+                            name="meeting-filter-date"
+                            placeholder="Any date"
+                            shouldShowCalendarButton
+                            value={selectedDate || ""}
+                            onChange={onDateChange}
+                        />
+
+                        {selectedDate ? (
+                            <Button
+                                appearance="subtle"
+                                iconBefore="cross"
+                                onClick={onClearDate}
+                            >
+                                Clear
+                            </Button>
+                        ) : null}
+                    </Inline>
+                </Stack>
+
             </Inline>
 
-            {selectedDate ? (
-                <Button appearance="subtle" icon="cross" onClick={onClearDate}>
-                    Clear date filter
-                </Button>
-            ) : null}
-
-            <Text>
-                The dropdown shows every extracted meeting note unless you choose a date.
-            </Text>
         </Stack>
     );
 }
