@@ -34,6 +34,7 @@ export default function MeetingDetailsSection({
     onDelete,
     onEdit,
     onEditInConfluence,
+    onOpenConfluence,
     onToggleDetails,
 }) {
     return (
@@ -55,6 +56,7 @@ export default function MeetingDetailsSection({
                             isConfluenceLinkAvailable={Boolean(meetingData.pageUrl)}
                             onCreateCalendarEvent={onCreateCalendarEvent}
                             onDelete={onDelete}
+                            onOpenConfluence={onOpenConfluence}
                             pageUrl={meetingData.pageUrl}
                         />
                     </Box>

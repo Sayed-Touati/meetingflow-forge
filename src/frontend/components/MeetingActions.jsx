@@ -1,7 +1,6 @@
 import React from "react";
 import {
     Heading,
-    Link,
     Pressable,
     Stack,
     Text,
@@ -49,6 +48,13 @@ const slackButtonStyles = createActionButtonStyles({
     pressedColor: "color.background.accent.magenta.bolder.pressed",
 });
 
+const confluenceButtonStyles = createActionButtonStyles({
+    backgroundColor: "color.background.neutral",
+    hoverColor: "color.background.neutral.hovered",
+    pressedColor: "color.background.neutral.pressed",
+    textColor: "color.text",
+});
+
 
 const deleteButtonStyles = createActionButtonStyles({
     backgroundColor: "color.background.danger.bold",
@@ -62,6 +68,7 @@ export default function MeetingActions({
                                            onCreateCalendarEvent,
                                            onNotifySlack,
                                            onDelete,
+                                           onOpenConfluence,
                                            pageUrl,
                                        }) {
     return (
@@ -97,9 +104,12 @@ export default function MeetingActions({
 
 
                 {isConfluenceLinkAvailable ? (
-                    <Link href={pageUrl} openNewTab>
+                    <Pressable
+                        onClick={onOpenConfluence}
+                        xcss={confluenceButtonStyles}
+                    >
                         Open in Confluence
-                    </Link>
+                    </Pressable>
                 ) : (
                     <Text color="color.text.disabled">
                         Open in Confluence

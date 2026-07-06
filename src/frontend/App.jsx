@@ -212,6 +212,12 @@ export default function App() {
         }
     };
 
+    const openSelectedMeetingInConfluence = () => {
+        if (displayedMeetingData?.pageUrl) {
+            router.open(displayedMeetingData.pageUrl);
+        }
+    };
+
     const toggleMeetingDetails = () => {
         if (isDetailsVisible) {
             setCalendarMessage("");
@@ -306,6 +312,7 @@ export default function App() {
                     onDelete={() => {}}
                     onEdit={() => setIsEditModalOpen(true)}
                     onEditInConfluence={openSelectedMeetingInConfluenceEditor}
+                    onOpenConfluence={openSelectedMeetingInConfluence}
                     onToggleDetails={toggleMeetingDetails}
                 />
             ) : null}
