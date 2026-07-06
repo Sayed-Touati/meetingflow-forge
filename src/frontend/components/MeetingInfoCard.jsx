@@ -187,7 +187,7 @@ function SummaryValue({ children }) {
 
 function ParticipantsList({ participants }) {
     if (!participants?.length) {
-        return <EmptyValue>No participants were extracted yet.</EmptyValue>;
+        return <EmptyValue>No participants included in this meeting.</EmptyValue>;
     }
 
     return (
@@ -260,7 +260,7 @@ function ListField({ emptyMessage, icon, items, label }) {
 
 function DiscussionTopicsTable({ topics }) {
     if (!topics?.length) {
-        return <EmptyValue>No discussion topic rows were extracted yet.</EmptyValue>;
+        return <EmptyValue>No discussion topics included in this meeting.</EmptyValue>;
     }
 
     return (
@@ -304,7 +304,7 @@ function normalizeResources(meetingData) {
 
 function ResourcesList({ resources }) {
     if (!resources?.length) {
-        return <EmptyValue>No resources were extracted yet.</EmptyValue>;
+        return <EmptyValue>No related info included in this meeting.</EmptyValue>;
     }
 
     return (
@@ -408,14 +408,14 @@ export default function MeetingInfoCard({
                         </StructuredSectionWithCount>
 
                         <ListField
-                            emptyMessage="No goals were extracted yet."
+                            emptyMessage="No goals included in this meeting."
                             icon="target"
                             items={meetingData.goals}
                             label="Goals"
                         />
 
                         <ListField
-                            emptyMessage="No brainstorm items were extracted yet."
+                            emptyMessage="No brainstorm included in this meeting."
                             icon="lightbulb"
                             items={meetingData.brainstorm}
                             label="Brainstorm"
