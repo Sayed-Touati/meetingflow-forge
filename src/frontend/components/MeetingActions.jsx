@@ -1,6 +1,7 @@
 import React from "react";
 import {
     Heading,
+    Link,
     Pressable,
     Stack,
     Text,
@@ -68,8 +69,8 @@ export default function MeetingActions({
                                            isConfluenceLinkAvailable,
                                            onCreateCalendarEvent,
                                            onNotifySlack,
-                                           onOpenConfluence,
                                            onDelete,
+                                           pageUrl,
                                        }) {
     return (
         <Stack space="space.150">
@@ -103,13 +104,15 @@ export default function MeetingActions({
                 </Pressable>
 
 
-                <Pressable
-                    onClick={onOpenConfluence}
-                    isDisabled={!isConfluenceLinkAvailable}
-                    xcss={confluenceButtonStyles}
-                >
-                    Open in Confluence
-                </Pressable>
+                {isConfluenceLinkAvailable ? (
+                    <Link href={pageUrl} openNewTab>
+                        Open in Confluence
+                    </Link>
+                ) : (
+                    <Text color="color.text.disabled">
+                        Open in Confluence
+                    </Text>
+                )}
 
 
                 <Pressable
@@ -124,4 +127,3 @@ export default function MeetingActions({
         </Stack>
     );
 }
-
