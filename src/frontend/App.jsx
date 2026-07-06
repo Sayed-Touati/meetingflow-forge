@@ -150,6 +150,14 @@ export default function App() {
         setIsEditModalOpen(false);
     };
 
+    const toggleMeetingDetails = () => {
+        if (isDetailsVisible) {
+            setCalendarMessage("");
+        }
+
+        setIsDetailsVisible((currentValue) => !currentValue);
+    };
+
     const openAutomationSettings = () => {
         setAutomationSettingsDraft(createAutomationSettingsDraft(automationSettings));
         setIsAutomationSettingsOpen(true);
@@ -235,9 +243,7 @@ export default function App() {
                     onCreateCalendarEvent={previewCalendarEvent}
                     onDelete={() => {}}
                     onEdit={() => setIsEditModalOpen(true)}
-                    onToggleDetails={() =>
-                        setIsDetailsVisible((currentValue) => !currentValue)
-                    }
+                    onToggleDetails={toggleMeetingDetails}
                 />
             ) : null}
 

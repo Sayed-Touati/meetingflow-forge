@@ -298,9 +298,24 @@ function linkType(href) {
   return href.includes("meet.google.com") ? "google-meet" : "link";
 }
 
-function createResource({ title, url }) {
+function getTrailingLabelBeforeNode(node) {
+  const siblings = node?.parent?.children ?? [];
+  const nodeIndex = siblings.indexOf(node);
+
+  if (nodeIndex <= 0) {
+    return "";
+  }
+
+  const textBeforeNode = getNodesText(siblings.slice(0, nodeIndex));
+  const labelMatch = textBeforeNode.match(/(?:^|[.;])\s*([^:.;]+):$/);
+
+  return labelMatch ? cleanText(labelMatch[1]) : "";
+}
+
+function createResource({ title, linkText, url }) {
   return {
     title: title || url || "Untitled resource",
+    ...(linkText && linkText !== title ? { linkText } : {}),
     url: url ?? "",
     type: url ? linkType(url) : "resource",
   };
@@ -310,10 +325,13 @@ function parseAnchorResources(sectionNodes) {
   return findAllTags(sectionNodes, "a")
     .map((linkNode) => {
       const url = linkNode.attribs?.href;
+      const linkText = getNodeText(linkNode);
+      const title = getTrailingLabelBeforeNode(linkNode) || linkText;
 
       return url
         ? createResource({
-            title: getNodeText(linkNode),
+            title,
+            linkText,
             url,
           })
         : null;
@@ -326,10 +344,13 @@ function parseConfluenceUrlResources(sectionNodes) {
     .map((urlNode) => {
       const url = urlNode.attribs?.["ri:value"];
       const linkNode = findAncestorTag(urlNode, "ac:link");
+      const linkText = linkNode ? getNodeText(linkNode) : "";
+      const title = getTrailingLabelBeforeNode(linkNode ?? urlNode) || linkText;
 
       return url
         ? createResource({
-            title: linkNode ? getNodeText(linkNode) : "",
+            title,
+            linkText,
             url,
           })
         : null;
@@ -379,6 +400,7 @@ function resourcesToRelatedLinks(resources) {
     .map((resource) => ({
       href: resource.url,
       text: resource.title,
+      ...(resource.linkText ? { linkText: resource.linkText } : {}),
       type: resource.type,
     }));
 }

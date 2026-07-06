@@ -162,6 +162,40 @@ test("parseMeetingNotePage extracts participant mentions from supported Confluen
   ]);
 });
 
+test("parseMeetingNotePage keeps Related info labels separate from link text", () => {
+  const page = {
+    id: "related-info-link-labels",
+    title: "Related info sync",
+    body: {
+      storage: {
+        value: `
+          <h2>Related info</h2>
+          <p>Google Meet: <a href="https://meet.google.com/pio-ecmh-dzw?authuser=0&amp;hs=122">link</a></p>
+        `,
+      },
+    },
+  };
+
+  const meetingNote = parseMeetingNotePage(page);
+
+  assert.deepEqual(meetingNote.resources, [
+    {
+      title: "Google Meet",
+      linkText: "link",
+      url: "https://meet.google.com/pio-ecmh-dzw?authuser=0&hs=122",
+      type: "google-meet",
+    },
+  ]);
+  assert.deepEqual(meetingNote.relatedLinks, [
+    {
+      href: "https://meet.google.com/pio-ecmh-dzw?authuser=0&hs=122",
+      text: "Google Meet",
+      linkText: "link",
+      type: "google-meet",
+    },
+  ]);
+});
+
 test("parseMeetingNotePage handles missing optional structured sections safely", () => {
   const page = {
     id: "empty-shapes",

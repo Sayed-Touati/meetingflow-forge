@@ -195,12 +195,12 @@ function ParticipantsList({ participants }) {
     );
 }
 
-function ListField({ emptyMessage, icon, items, label }) {
+function ListField({ emptyMessage, icon, items, label, showCount = true }) {
     const normalizedItems = normalizeListItems(items);
 
     return (
         <StructuredSectionWithCount
-            count={normalizedItems.length}
+            count={showCount ? normalizedItems.length : undefined}
             icon={icon}
             label={label}
         >
@@ -257,6 +257,7 @@ function normalizeResources(meetingData) {
 
     return (meetingData.relatedLinks ?? []).map((link) => ({
         title: link.text || link.href,
+        linkText: link.linkText,
         url: link.href,
         type: link.type,
     }));
@@ -272,16 +273,20 @@ function ResourcesList({ resources }) {
             {resources.map((resource, index) => (
                 <ListItem key={resource.url || `${resource.title}-${index}`}>
                     <Inline space="space.100" alignBlock="center" shouldWrap>
-                        {resource.url ? (
+                        {resource.url && resource.linkText && resource.title ? (
+                            <>
+                                <Text>{resource.title}:</Text>
+                                <Link href={resource.url} openNewTab>
+                                    {resource.linkText}
+                                </Link>
+                            </>
+                        ) : resource.url ? (
                             <Link href={resource.url} openNewTab>
                                 {resource.title || resource.url}
                             </Link>
                         ) : (
                             <Text>{resource.title || "Untitled resource"}</Text>
                         )}
-                        <Badge appearance={resource.type === "google-meet" ? "primary" : "default"}>
-                            {resource.type === "google-meet" ? "Google Meet" : resource.url ? "Link" : "No URL"}
-                        </Badge>
                     </Inline>
                 </ListItem>
             ))}
@@ -375,6 +380,7 @@ export default function MeetingInfoCard({
                             icon="lightbulb"
                             items={meetingData.brainstorm}
                             label="Brainstorm"
+                            showCount={false}
                         />
 
                         <StructuredSectionWithCount
@@ -388,7 +394,7 @@ export default function MeetingInfoCard({
                         <StructuredSectionWithCount
                             count={resources.length}
                             icon="link"
-                            label="Resources"
+                            label="Related info"
                         >
                             <ResourcesList resources={resources} />
                         </StructuredSectionWithCount>

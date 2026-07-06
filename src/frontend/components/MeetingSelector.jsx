@@ -24,7 +24,7 @@ export default function MeetingSelector({
         <Stack space="space.150">
 
             <Heading as="h2">
-                Choose a meeting
+                Choose a Meeting Note
             </Heading>
 
             <Inline
