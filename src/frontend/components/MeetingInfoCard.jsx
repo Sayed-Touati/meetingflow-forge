@@ -57,6 +57,14 @@ const detailsButtonStyles = xcss({
     },
 });
 
+const stickyHeaderStyles = xcss({
+    backgroundColor: "color.background.input",
+    paddingBlockEnd: "space.100",
+    position: "sticky",
+    top: "space.0",
+    zIndex: "elevation.surface",
+});
+
 function createTextFromList(items, formatter = (item) => item) {
     return (items ?? []).map(formatter).join("\n");
 }
@@ -153,43 +161,44 @@ export default function MeetingInfoCard({
 
     return (
         <Stack space="space.200">
-            <Inline spread="space-between" alignBlock="center">
-                <Stack space="space.050">
-                    <Heading as="h2">{meetingData.title || "Untitled meeting note"}</Heading>
-                </Stack>
+            <Box xcss={stickyHeaderStyles}>
+                <Inline spread="space-between" alignBlock="center">
+                    <Stack space="space.050">
+                        <Heading as="h2">{meetingData.title || "Untitled meeting note"}</Heading>
+                        <Inline space="space.100" alignBlock="center">
+                            <Badge appearance="primary">
+                                {meetingData.date || "No date"}
+                            </Badge>
+                        </Inline>
+                    </Stack>
 
-                <Inline space="space.100" alignBlock="center">
-                    <Pressable onClick={onToggleDetails}>
-                        <Box xcss={detailsButtonStyles}>
-                            <Inline space="space.050" alignBlock="center">
-                                <Icon
-                                    glyph={isDetailsVisible ? "chevron-up" : "chevron-down"}
-                                    label={detailsToggleLabel}
-                                    size="small"
-                                />
-                                <Text weight="medium">{detailsToggleLabel}</Text>
-                            </Inline>
-                        </Box>
-                    </Pressable>
+                    <Inline space="space.100" alignBlock="center">
+                        <Pressable onClick={onToggleDetails}>
+                            <Box xcss={detailsButtonStyles}>
+                                <Inline space="space.050" alignBlock="center">
+                                    <Icon
+                                        glyph={isDetailsVisible ? "chevron-up" : "chevron-down"}
+                                        label={detailsToggleLabel}
+                                        size="small"
+                                    />
+                                    <Text weight="medium">{detailsToggleLabel}</Text>
+                                </Inline>
+                            </Box>
+                        </Pressable>
 
-                    <Pressable onClick={onEdit}>
-                        <Box xcss={editButtonStyles}>
-                            <Inline space="space.050" alignBlock="center">
-                                <Icon glyph="edit-filled" label="Edit meeting details" size="small" />
-                                <Text color="color.text.accent.blue" weight="medium">
-                                    Edit
-                                </Text>
-                            </Inline>
-                        </Box>
-                    </Pressable>
+                        <Pressable onClick={onEdit}>
+                            <Box xcss={editButtonStyles}>
+                                <Inline space="space.050" alignBlock="center">
+                                    <Icon glyph="edit-filled" label="Edit meeting details" size="small" />
+                                    <Text color="color.text.accent.blue" weight="medium">
+                                        Edit
+                                    </Text>
+                                </Inline>
+                            </Box>
+                        </Pressable>
+                    </Inline>
                 </Inline>
-            </Inline>
-
-            <Inline space="space.100" alignBlock="center">
-                <Badge appearance="primary">
-                    {meetingData.date || "No date"}
-                </Badge>
-            </Inline>
+            </Box>
 
             {isDetailsVisible ? (
                 <Stack space="space.200">
