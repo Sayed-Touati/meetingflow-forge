@@ -59,9 +59,10 @@ const detailsButtonStyles = xcss({
 
 const stickyHeaderStyles = xcss({
     backgroundColor: "color.background.input",
+    paddingBlockStart: "space.050",
     paddingBlockEnd: "space.100",
     position: "sticky",
-    top: "space.0",
+    top: "space.200",
     zIndex: "elevation.surface",
 });
 
@@ -164,7 +165,7 @@ export default function MeetingInfoCard({
             <Box xcss={stickyHeaderStyles}>
                 <Inline spread="space-between" alignBlock="center">
                     <Stack space="space.050">
-                        <Heading as="h2">{meetingData.title || "Untitled meeting note"}</Heading>
+                        <Heading as="h2">Meeting information</Heading>
                         <Inline space="space.100" alignBlock="center">
                             <Badge appearance="primary">
                                 {meetingData.date || "No date"}

@@ -14,15 +14,13 @@ const meetingWorkspaceStyles = xcss({
     alignItems: "flex-start",
 });
 
-const meetingNoteScrollStyles = xcss({
+const meetingNoteColumnStyles = xcss({
     flexGrow: 1,
-    maxHeight: "70vh",
     minWidth: "0",
-    overflowY: "auto",
-    paddingBlockEnd: "space.100",
 });
 
 const stickyActionsStyles = xcss({
+    alignSelf: "start",
     flexShrink: 0,
     position: "sticky",
     top: "space.200",
@@ -41,7 +39,7 @@ export default function MeetingDetailsSection({
         <Stack space="space.200">
             <Box xcss={meetingWorkspaceStyles}>
                 <Inline space="space.300" alignBlock="start">
-                    <Box xcss={meetingNoteScrollStyles}>
+                    <Box xcss={meetingNoteColumnStyles}>
                         <MeetingInfoCard
                             isDetailsVisible={isDetailsVisible}
                             meetingData={meetingData}
