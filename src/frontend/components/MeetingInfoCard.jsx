@@ -106,9 +106,6 @@ export default function MeetingInfoCard({
             <Inline spread="space-between" alignBlock="center">
                 <Stack space="space.050">
                     <Heading as="h2">{meetingData.title || "Untitled meeting note"}</Heading>
-                    <Text color="color.text.subtle">
-                        Extracted meeting metadata from Confluence.
-                    </Text>
                 </Stack>
 
                 <Button appearance="subtle" icon="edit" onClick={onEdit}>
