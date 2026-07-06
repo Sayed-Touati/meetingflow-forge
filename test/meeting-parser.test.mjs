@@ -196,6 +196,29 @@ test("parseMeetingNotePage keeps Related info labels separate from link text", (
   ]);
 });
 
+test("parseMeetingNotePage decodes Confluence HTML entities in brainstorm items", () => {
+  const page = {
+    id: "brainstorm-entities",
+    title: "Brainstorm entity sync",
+    body: {
+      storage: {
+        value: `
+          <h2>Brainstorm</h2>
+          <ul>
+            <li>Don&rsquo;t lose special characters&hellip;</li>
+            <li>Use &ldquo;Confluence text&rdquo; exactly.</li>
+          </ul>
+        `,
+      },
+    },
+  };
+
+  assert.deepEqual(parseMeetingNotePage(page).brainstorm, [
+    "Don’t lose special characters…",
+    "Use “Confluence text” exactly.",
+  ]);
+});
+
 test("parseMeetingNotePage handles missing optional structured sections safely", () => {
   const page = {
     id: "empty-shapes",

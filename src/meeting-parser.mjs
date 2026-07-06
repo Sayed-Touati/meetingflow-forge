@@ -1,4 +1,5 @@
 import { DomUtils, parseDocument } from "htmlparser2";
+import { decodeHTML } from "entities";
 
 const TEMPLATE_PLACEHOLDER_TEXT = [
   "List goals for this meeting (e.g., Set design priorities for FY27)",
@@ -15,9 +16,10 @@ function isTag(node, name) {
 }
 
 function cleanText(value) {
+  const decodedValue = decodeHTML(value ?? "");
   const withoutPlaceholders = TEMPLATE_PLACEHOLDER_TEXT.reduce(
     (text, placeholder) => text.replaceAll(placeholder, " "),
-    value ?? "",
+    decodedValue,
   );
 
   return withoutPlaceholders
