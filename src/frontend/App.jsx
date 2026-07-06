@@ -7,6 +7,11 @@ import {
     Text,
 } from "@forge/react";
 import { invoke } from "@forge/bridge";
+import {
+    AUTOMATION_DEFAULT_SETTINGS,
+    createAutomationSettingsDraft,
+} from "../automation-settings.mjs";
+import AutomationSettingsDrawer from "./components/AutomationSettingsDrawer";
 import AppHeader from "./components/AppHeader";
 import EditMeetingModal from "./components/EditMeetingModal";
 import MeetingDetailsSection from "./components/MeetingDetailsSection";
@@ -46,6 +51,14 @@ export default function App() {
     const [isAppInfoVisible, setIsAppInfoVisible] = useState(false);
     const [isDetailsVisible, setIsDetailsVisible] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [automationSettings, setAutomationSettings] = useState(
+        AUTOMATION_DEFAULT_SETTINGS,
+    );
+    const [automationSettingsDraft, setAutomationSettingsDraft] = useState(
+        AUTOMATION_DEFAULT_SETTINGS,
+    );
+    const [isAutomationSettingsOpen, setIsAutomationSettingsOpen] =
+        useState(false);
 
     const meetingOptions = useMemo(
         () =>
@@ -137,6 +150,33 @@ export default function App() {
         setIsEditModalOpen(false);
     };
 
+    const openAutomationSettings = () => {
+        setAutomationSettingsDraft(createAutomationSettingsDraft(automationSettings));
+        setIsAutomationSettingsOpen(true);
+    };
+
+    const updateAutomationSettingsDraft = (fieldName, value) => {
+        setAutomationSettingsDraft((currentSettings) =>
+            createAutomationSettingsDraft({
+                ...currentSettings,
+                [fieldName]: value,
+            }),
+        );
+    };
+
+    const cancelAutomationSettings = () => {
+        setAutomationSettingsDraft(createAutomationSettingsDraft(automationSettings));
+        setIsAutomationSettingsOpen(false);
+    };
+
+    const saveAutomationSettings = () => {
+        const nextSettings = createAutomationSettingsDraft(automationSettingsDraft);
+
+        setAutomationSettings(nextSettings);
+        setAutomationSettingsDraft(nextSettings);
+        setIsAutomationSettingsOpen(false);
+    };
+
     useEffect(() => {
         loadMeetingSummaries(selectedDate);
     }, []);
@@ -149,6 +189,7 @@ export default function App() {
             <AppHeader
                 isInfoVisible={isAppInfoVisible}
                 onCloseInfo={() => setIsAppInfoVisible(false)}
+                onOpenAutomationSettings={openAutomationSettings}
                 onToggleInfo={() => setIsAppInfoVisible((isVisible) => !isVisible)}
             />
 
@@ -208,6 +249,15 @@ export default function App() {
                     onUpdateBrainstorm={updateBrainstorm}
                     onUpdateField={updateMeetingField}
                     onUpdateGoals={updateGoals}
+                />
+            ) : null}
+
+            {isAutomationSettingsOpen ? (
+                <AutomationSettingsDrawer
+                    draftSettings={automationSettingsDraft}
+                    onCancel={cancelAutomationSettings}
+                    onSave={saveAutomationSettings}
+                    onUpdateDraftSetting={updateAutomationSettingsDraft}
                 />
             ) : null}
         </Stack>
