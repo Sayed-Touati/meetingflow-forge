@@ -6,11 +6,13 @@ import ForgeReconciler, {
     DatePicker,
     DynamicTable,
     Heading,
+    Icon,
     Inline,
     Label,
     Link,
     List,
     ListItem,
+    Pressable,
     SectionMessage,
     Select,
     Spinner,
@@ -62,7 +64,13 @@ function AppHeader({ isInfoVisible, onToggleInfo }) {
             <Inline space="space.100" alignBlock="center">
                 <Heading as="h1">MeetingFlow</Heading>
                 <Tooltip text="Show what this app does">
-                    <Button appearance="subtle" icon="info" onClick={onToggleInfo} />
+                    <Pressable onClick={onToggleInfo}>
+                        <Icon
+                            glyph="information-circle"
+                            label="Show what this app does"
+                            size="small"
+                        />
+                    </Pressable>
                 </Tooltip>
             </Inline>
 
