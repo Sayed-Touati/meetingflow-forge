@@ -99,7 +99,7 @@ export default function MeetingActions({
                     onClick={onNotifySlack}
                     xcss={slackButtonStyles}
                 >
-                    Notify team on Slack
+                    Notify Team on Slack
                 </Pressable>
 
 

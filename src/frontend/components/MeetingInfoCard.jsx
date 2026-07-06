@@ -305,13 +305,7 @@ export default function MeetingInfoCard({
             <Box xcss={stickyHeaderStyles}>
                 <Inline spread="space-between" alignBlock="center">
                     <Stack space="space.050">
-                        <Heading as="h2">Meeting information</Heading>
-                        <Inline space="space.100" alignBlock="center">
-                            <Badge appearance="primary">
-                                {formatDate(meetingData.date)}
-                            </Badge>
-                            {meetingData.startTime ? <Badge>{meetingTime}</Badge> : null}
-                        </Inline>
+                        <Heading as="h2">Meeting details</Heading>
                     </Stack>
 
                     <Inline space="space.100" alignBlock="center" shouldWrap>

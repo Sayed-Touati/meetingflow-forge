@@ -182,3 +182,68 @@ test("syncMeetingNotesFromConfluence resolves account ID participant names befor
     },
   ]);
 });
+
+test("syncMeetingNotesFromConfluence resolves account ID presenter names before saving", async () => {
+  const kvs = createMemoryKvs();
+  const fetchedAccountIds = [];
+  const searchPages = async () =>
+    createResponse({
+      results: [{ content: { id: "meeting-page" } }],
+    });
+  const fetchPage = async () =>
+    createResponse({
+      id: "meeting-page",
+      title: "Presenter sync",
+      sourceTemplateEntityId: MEETING_NOTES_TEMPLATE_ID,
+      body: {
+        storage: {
+          value: `
+            <h2>Date</h2>
+            <p><time datetime="2026-07-05" /></p>
+            <h2>Discussion topics</h2>
+            <table>
+              <tbody>
+                <tr><th>Time</th><th>Topic</th><th>Presenter</th><th>Notes</th></tr>
+                <tr>
+                  <td>10:00</td>
+                  <td>Calendar workflow</td>
+                  <td><ac:link><ri:user ri:account-id="712020:6c46aaa2-f232-401d-a887-aeb5da6ca229" /></ac:link></td>
+                  <td>Confirm event creation behavior.</td>
+                </tr>
+              </tbody>
+            </table>
+          `,
+        },
+      },
+    });
+  const fetchUser = async (accountId) => {
+    fetchedAccountIds.push(accountId);
+
+    return createResponse({
+      accountId,
+      displayName: "Sayed Touati",
+    });
+  };
+
+  await syncMeetingNotesFromConfluence({
+    fetchPage,
+    fetchUser,
+    kvsClient: kvs,
+    searchPages,
+  });
+
+  assert.deepEqual(fetchedAccountIds, [
+    "712020:6c46aaa2-f232-401d-a887-aeb5da6ca229",
+  ]);
+  assert.deepEqual(kvs.values.get("meeting-note:meeting-page").discussionTopics, [
+    {
+      time: "10:00",
+      topic: "Calendar workflow",
+      presenter: {
+        accountId: "712020:6c46aaa2-f232-401d-a887-aeb5da6ca229",
+        displayName: "Sayed Touati",
+      },
+      notes: "Confirm event creation behavior.",
+    },
+  ]);
+});
