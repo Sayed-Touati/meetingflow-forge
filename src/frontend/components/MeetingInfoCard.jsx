@@ -5,6 +5,7 @@ import {
     Button,
     DynamicTable,
     Heading,
+    Icon,
     Inline,
     Link,
     List,
@@ -17,17 +18,58 @@ import {
 } from "@forge/react";
 import MeetingField from "./MeetingField";
 
+const cardShellStyles = xcss({
+    backgroundColor: "color.background.input",
+    borderColor: "color.border",
+    borderRadius: "border.radius.200",
+    borderStyle: "solid",
+    borderWidth: "border.width",
+    paddingBlockEnd: "space.250",
+    paddingInline: "space.250",
+});
+
 const stickyHeaderStyles = xcss({
     backgroundColor: "color.background.input",
-    paddingBlockStart: "space.050",
-    paddingBlockEnd: "space.100",
+    borderBlockEndColor: "color.border",
+    borderBlockEndStyle: "solid",
+    borderBlockEndWidth: "border.width",
+    paddingBlockStart: "space.100",
+    paddingBlockEnd: "space.150",
     position: "sticky",
     top: "space.200",
     zIndex: "elevation.surface",
 });
 
+const detailsBodyStyles = xcss({
+    paddingBlockStart: "space.250",
+});
+
 const summaryFieldStyles = xcss({
+    backgroundColor: "color.background.accent.blue.subtlest",
+    borderColor: "color.border.accent.blue",
+    borderRadius: "border.radius.100",
+    borderStyle: "solid",
+    borderWidth: "border.width",
     minWidth: "180px",
+    paddingBlock: "space.200",
+    paddingInline: "space.200",
+});
+
+const sectionStyles = xcss({
+    borderBlockStartColor: "color.border",
+    borderBlockStartStyle: "solid",
+    borderBlockStartWidth: "border.width",
+    paddingBlockStart: "space.200",
+});
+
+const sectionIconFrameStyles = xcss({
+    backgroundColor: "color.background.accent.blue.subtlest",
+    borderColor: "color.border.accent.blue",
+    borderStyle: "solid",
+    borderWidth: "border.width",
+    borderRadius: "border.radius.100",
+    paddingBlock: "space.050",
+    paddingInline: "space.050",
 });
 
 function normalizeListItems(items) {
@@ -91,14 +133,47 @@ function EmptyValue({ children }) {
     return <Text color="color.text.subtle">{children}</Text>;
 }
 
-function StructuredSection({ label, children }) {
+function SectionCountBadge({ count }) {
+    if (!count) {
+        return null;
+    }
+
     return (
-        <Stack space="space.050">
-            <Text color="color.text.subtle" size="small" weight="medium">
-                {label}
-            </Text>
+        <Badge appearance="default">
+            {String(count)}
+        </Badge>
+    );
+}
+
+function StructuredSectionWithCount({ children, count, icon, label }) {
+    return (
+        <Box xcss={sectionStyles}>
+            <Stack space="space.150">
+                <Inline space="space.100" alignBlock="center">
+                    <Box xcss={sectionIconFrameStyles}>
+                        <Icon
+                            glyph={icon}
+                            label=""
+                            primaryColor="color.icon.accent.blue"
+                            size="small"
+                        />
+                    </Box>
+                    <Text color="color.text" weight="bold">
+                        {label}
+                    </Text>
+                    <SectionCountBadge count={count} />
+                </Inline>
+                {children}
+            </Stack>
+        </Box>
+    );
+}
+
+function SummaryValue({ children }) {
+    return (
+        <Text color="color.text" weight="bold">
             {children}
-        </Stack>
+        </Text>
     );
 }
 
@@ -120,11 +195,15 @@ function ParticipantsList({ participants }) {
     );
 }
 
-function ListField({ emptyMessage, items, label }) {
+function ListField({ emptyMessage, icon, items, label }) {
     const normalizedItems = normalizeListItems(items);
 
     return (
-        <StructuredSection label={label}>
+        <StructuredSectionWithCount
+            count={normalizedItems.length}
+            icon={icon}
+            label={label}
+        >
             {normalizedItems.length ? (
                 <List>
                     {normalizedItems.map((item, index) => (
@@ -136,7 +215,7 @@ function ListField({ emptyMessage, items, label }) {
             ) : (
                 <EmptyValue>{emptyMessage}</EmptyValue>
             )}
-        </StructuredSection>
+        </StructuredSectionWithCount>
     );
 }
 
@@ -221,7 +300,8 @@ export default function MeetingInfoCard({
     const resources = normalizeResources(meetingData);
 
     return (
-        <Stack space="space.200">
+        <Box xcss={cardShellStyles}>
+            <Stack space="space.200">
             <Box xcss={stickyHeaderStyles}>
                 <Inline spread="space-between" alignBlock="center">
                     <Stack space="space.050">
@@ -234,7 +314,7 @@ export default function MeetingInfoCard({
                         </Inline>
                     </Stack>
 
-                    <Inline space="space.100" alignBlock="center">
+                    <Inline space="space.100" alignBlock="center" shouldWrap>
                         <Button
                             appearance="subtle"
                             icon={isDetailsVisible ? "chevron-up" : "chevron-down"}
@@ -257,52 +337,71 @@ export default function MeetingInfoCard({
             </Box>
 
             {isDetailsVisible ? (
-                <Stack space="space.200">
-                    <Inline space="space.300" rowSpace="space.100" shouldWrap>
-                        <Box xcss={summaryFieldStyles}>
-                            <MeetingField label="Title">
-                                <Text>{meetingData.title || "Untitled meeting note"}</Text>
-                            </MeetingField>
-                        </Box>
+                <Box xcss={detailsBodyStyles}>
+                    <Stack space="space.250">
+                        <Inline space="space.200" rowSpace="space.150" shouldWrap>
+                            <Box xcss={summaryFieldStyles}>
+                                <MeetingField icon="page" label="Title">
+                                    <SummaryValue>
+                                        {meetingData.title || "Untitled meeting note"}
+                                    </SummaryValue>
+                                </MeetingField>
+                            </Box>
 
-                        <Box xcss={summaryFieldStyles}>
-                            <MeetingField label="Date">
-                                <Text>{formatDate(meetingData.date)}</Text>
-                            </MeetingField>
-                        </Box>
+                            <Box xcss={summaryFieldStyles}>
+                                <MeetingField icon="calendar" label="Date">
+                                    <SummaryValue>{formatDate(meetingData.date)}</SummaryValue>
+                                </MeetingField>
+                            </Box>
 
-                        <Box xcss={summaryFieldStyles}>
-                            <MeetingField label="Time">
-                                <Text>{meetingTime}</Text>
-                            </MeetingField>
-                        </Box>
-                    </Inline>
+                            <Box xcss={summaryFieldStyles}>
+                                <MeetingField icon="clock" label="Time">
+                                    <SummaryValue>{meetingTime}</SummaryValue>
+                                </MeetingField>
+                            </Box>
+                        </Inline>
 
-                    <StructuredSection label="Participants">
-                        <ParticipantsList participants={meetingData.participants} />
-                    </StructuredSection>
+                        <StructuredSectionWithCount
+                            count={meetingData.participants?.length}
+                            icon="people"
+                            label="Participants"
+                        >
+                            <ParticipantsList participants={meetingData.participants} />
+                        </StructuredSectionWithCount>
 
-                    <ListField
-                        emptyMessage="No goals were extracted yet."
-                        items={meetingData.goals}
-                        label="Goals"
-                    />
+                        <ListField
+                            emptyMessage="No goals were extracted yet."
+                            icon="target"
+                            items={meetingData.goals}
+                            label="Goals"
+                        />
 
-                    <ListField
-                        emptyMessage="No brainstorm items were extracted yet."
-                        items={meetingData.brainstorm}
-                        label="Brainstorm"
-                    />
+                        <ListField
+                            emptyMessage="No brainstorm items were extracted yet."
+                            icon="lightbulb"
+                            items={meetingData.brainstorm}
+                            label="Brainstorm"
+                        />
 
-                    <StructuredSection label="Discussion topics">
-                        <DiscussionTopicsTable topics={meetingData.discussionTopics} />
-                    </StructuredSection>
+                        <StructuredSectionWithCount
+                            count={meetingData.discussionTopics?.length}
+                            icon="table"
+                            label="Discussion topics"
+                        >
+                            <DiscussionTopicsTable topics={meetingData.discussionTopics} />
+                        </StructuredSectionWithCount>
 
-                    <StructuredSection label="Resources">
-                        <ResourcesList resources={resources} />
-                    </StructuredSection>
-                </Stack>
+                        <StructuredSectionWithCount
+                            count={resources.length}
+                            icon="link"
+                            label="Resources"
+                        >
+                            <ResourcesList resources={resources} />
+                        </StructuredSectionWithCount>
+                    </Stack>
+                </Box>
             ) : null}
-        </Stack>
+            </Stack>
+        </Box>
     );
 }
