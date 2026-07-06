@@ -63,6 +63,20 @@ function findFirstTag(nodes, tagName) {
   return DomUtils.findOne((node) => isTag(node, tagName), nodes);
 }
 
+function findAncestorTag(node, tagName) {
+  let currentNode = node?.parent;
+
+  while (currentNode) {
+    if (isTag(currentNode, tagName)) {
+      return currentNode;
+    }
+
+    currentNode = currentNode.parent;
+  }
+
+  return undefined;
+}
+
 function getPageUrl(page) {
   if (!page?._links?.base || !page?._links?.webui) {
     return undefined;
@@ -102,19 +116,35 @@ function parseDate(documentRoot) {
 }
 
 function parseParticipants(sectionNodes) {
-  const participantLinks = findAllTags(sectionNodes, "ac:link");
+  const seenParticipantIds = new Set();
+  const userNodes = findAllTags(sectionNodes, "ri:user");
 
-  return participantLinks
-    .map((linkNode) => {
-      const userNode = findFirstTag(linkNode.children ?? [], "ri:user");
+  return userNodes
+    .map((userNode) => {
+      const accountId = userNode.attribs?.["ri:account-id"];
+      const userKey = userNode.attribs?.["ri:userkey"];
+      const username = userNode.attribs?.["ri:username"];
+      const participantId = accountId || userKey || username;
 
-      if (!userNode?.attribs?.["ri:account-id"]) {
+      if (!participantId || seenParticipantIds.has(participantId)) {
         return null;
       }
 
+      seenParticipantIds.add(participantId);
+
+      // Confluence Cloud usually stores mentions as:
+      // <ac:link><ri:user ri:account-id="..." /></ac:link>
+      // Some pages also include an optional link body with the visible name.
+      // When that body is absent, falling back to the identifier is more useful
+      // than returning an empty string to the confirmation UI.
+      const linkNode = findAncestorTag(userNode, "ac:link");
+      const visibleName = linkNode ? getNodeText(linkNode) : "";
+
       return {
-        accountId: userNode.attribs["ri:account-id"],
-        name: getNodeText(linkNode),
+        ...(accountId ? { accountId } : {}),
+        ...(userKey ? { userKey } : {}),
+        ...(username ? { username } : {}),
+        name: visibleName || participantId,
       };
     })
     .filter(Boolean);

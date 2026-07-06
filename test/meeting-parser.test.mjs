@@ -93,3 +93,32 @@ test("parseMeetingNotePage returns structured meeting fields from Confluence sto
     },
   });
 });
+
+test("parseMeetingNotePage extracts participant mentions from supported Confluence user reference shapes", () => {
+  const page = {
+    id: "participant-shapes",
+    title: "Participant parser sync",
+    body: {
+      storage: {
+        value: `
+          <h2>Participants</h2>
+          <p>
+            <ac:link><ri:user ri:account-id="abc-123" /></ac:link>
+            <ac:link><ri:user ri:account-id="def-456" /><ac:link-body><strong>Dana Forge</strong></ac:link-body></ac:link>
+            <ac:link><ri:user ri:userkey="legacy-user-key" /></ac:link>
+            <ac:link><ri:user ri:username="old.username" /></ac:link>
+            <ri:user ri:account-id="bare-user-node" />
+          </p>
+        `,
+      },
+    },
+  };
+
+  assert.deepEqual(parseMeetingNotePage(page).participants, [
+    { accountId: "abc-123", name: "abc-123" },
+    { accountId: "def-456", name: "Dana Forge" },
+    { userKey: "legacy-user-key", name: "legacy-user-key" },
+    { username: "old.username", name: "old.username" },
+    { accountId: "bare-user-node", name: "bare-user-node" },
+  ]);
+});

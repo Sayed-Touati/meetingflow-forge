@@ -20,6 +20,10 @@ resolver.define("listMeetingNotesForDate", async (req) => {
         .asUser()
         .requestConfluence(route`/wiki/api/v2/pages/${pageId}?body-format=storage`),
     kvsClient: kvs,
+    fetchUser: (accountId) =>
+      api
+        .asUser()
+        .requestConfluence(route`/wiki/rest/api/user?accountId=${accountId}`),
     searchPages: ({ cql, limit }) =>
       api
         .asUser()

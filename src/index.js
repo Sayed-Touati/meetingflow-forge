@@ -1,6 +1,7 @@
 import api, { route } from "@forge/api";
 import { kvs } from "@forge/kvs";
 import { parseMeetingNotePage } from "./meeting-parser.mjs";
+import { resolveParticipantDisplayNames } from "./participant-resolver.mjs";
 import { saveMeetingNoteRecord } from "./meeting-storage.mjs";
 import { MEETING_NOTES_TEMPLATE_ID } from "./meeting-notes-template.mjs";
 
@@ -52,7 +53,15 @@ export async function handlePageEvent(event, context) {
     storageValuePreview: page.body?.storage?.value?.slice(0, 500),
   });
 
-  const extractedMeetingData = parseMeetingNotePage(page);
+  const extractedMeetingData = await resolveParticipantDisplayNames(
+    parseMeetingNotePage(page),
+    {
+      fetchUser: (accountId) =>
+        api
+          .asApp()
+          .requestConfluence(route`/wiki/rest/api/user?accountId=${accountId}`),
+    },
+  );
 
   console.log("Extracted meeting data:", extractedMeetingData);
   console.log("Meeting note section headings:", Object.keys(extractedMeetingData.sections));

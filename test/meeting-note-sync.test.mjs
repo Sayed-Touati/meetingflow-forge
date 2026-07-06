@@ -121,3 +121,64 @@ test("syncMeetingNotesFromConfluence indexes only Meeting Notes pages for the se
     "other-date-meeting",
   ]);
 });
+
+test("syncMeetingNotesFromConfluence resolves account ID participant names before saving", async () => {
+  const kvs = createMemoryKvs();
+  const fetchedAccountIds = [];
+  const searchPages = async () =>
+    createResponse({
+      results: [{ content: { id: "meeting-page" } }],
+    });
+  const fetchPage = async () =>
+    createResponse({
+      id: "meeting-page",
+      title: "Participant sync",
+      sourceTemplateEntityId: MEETING_NOTES_TEMPLATE_ID,
+      body: {
+        storage: {
+          value: `
+            <h2>Date</h2>
+            <p><time datetime="2026-07-05" /></p>
+            <h2>Participants</h2>
+            <p>
+              <ac:link><ri:user ri:account-id="712020:6c46aaa2-f232-401d-a887-aeb5da6ca229" /></ac:link>
+              <ac:link><ri:user ri:account-id="712020:ee66f328-7efd-44eb-998e-de05a6ca745c" /></ac:link>
+            </p>
+          `,
+        },
+      },
+    });
+  const fetchUser = async (accountId) => {
+    fetchedAccountIds.push(accountId);
+
+    return createResponse({
+      accountId,
+      displayName:
+        accountId === "712020:6c46aaa2-f232-401d-a887-aeb5da6ca229"
+          ? "Sayed Touati"
+          : "Iheb Touati",
+    });
+  };
+
+  await syncMeetingNotesFromConfluence({
+    fetchPage,
+    fetchUser,
+    kvsClient: kvs,
+    searchPages,
+  });
+
+  assert.deepEqual(fetchedAccountIds, [
+    "712020:6c46aaa2-f232-401d-a887-aeb5da6ca229",
+    "712020:ee66f328-7efd-44eb-998e-de05a6ca745c",
+  ]);
+  assert.deepEqual(kvs.values.get("meeting-note:meeting-page").participants, [
+    {
+      accountId: "712020:6c46aaa2-f232-401d-a887-aeb5da6ca229",
+      name: "Sayed Touati",
+    },
+    {
+      accountId: "712020:ee66f328-7efd-44eb-998e-de05a6ca745c",
+      name: "Iheb Touati",
+    },
+  ]);
+});

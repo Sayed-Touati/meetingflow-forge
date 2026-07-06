@@ -42,6 +42,14 @@ function createTextFromList(items, formatter = (item) => item) {
     return (items ?? []).map(formatter).join("\n");
 }
 
+function getParticipantIdentifier(participant) {
+    return participant.accountId || participant.userKey || participant.username || participant.name;
+}
+
+function getParticipantLabel(participant) {
+    return participant.name || getParticipantIdentifier(participant);
+}
+
 function EmptyValue({ children }) {
     return (
         <SectionMessage appearance="warning" title="Needs review">
@@ -166,8 +174,8 @@ export default function MeetingInfoCard({
                             <TagGroup>
                                 {meetingData.participants.map((participant) => (
                                     <Tag
-                                        key={participant.accountId}
-                                        text={participant.name || participant.accountId}
+                                        key={getParticipantIdentifier(participant)}
+                                        text={getParticipantLabel(participant)}
                                         color="blue-light"
                                     />
                                 ))}

@@ -1,4 +1,5 @@
 import { parseMeetingNotePage } from "./meeting-parser.mjs";
+import { resolveParticipantDisplayNames } from "./participant-resolver.mjs";
 import { saveMeetingNoteRecord } from "./meeting-storage.mjs";
 import { MEETING_NOTES_TEMPLATE_ID } from "./meeting-notes-template.mjs";
 
@@ -30,6 +31,7 @@ function dateMatches(meetingNote, date) {
 export async function syncMeetingNotesFromConfluence({
   date,
   fetchPage,
+  fetchUser,
   kvsClient,
   searchPages,
 }) {
@@ -65,7 +67,12 @@ export async function syncMeetingNotesFromConfluence({
       continue;
     }
 
-    await saveMeetingNoteRecord(kvsClient, meetingNote);
+    const meetingNoteWithParticipantNames = await resolveParticipantDisplayNames(
+      meetingNote,
+      { fetchUser },
+    );
+
+    await saveMeetingNoteRecord(kvsClient, meetingNoteWithParticipantNames);
     indexedCount += 1;
   }
 

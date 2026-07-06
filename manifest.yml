@@ -33,6 +33,7 @@ resources:
 permissions:
   scopes:
     - read:confluence-content.summary
+    - read:confluence-user
     - read:page:confluence
     - search:confluence
     - storage:app
