@@ -41,6 +41,16 @@ function EditableField({ children, label }) {
     );
 }
 
+function getExpandableTextAreaProps(value, minimumRows, maxHeight) {
+    return value
+        ? {
+              maxHeight,
+              minimumRows,
+              resize: "vertical",
+          }
+        : {};
+}
+
 function getEditableResources(meetingData) {
     if (meetingData.resources?.length) {
         return meetingData.resources;
@@ -156,6 +166,9 @@ export default function EditMeetingModal({
     onUpdateParticipants,
     onUpdateRelatedInfo,
 }) {
+    const goalsValue = stringifyListItems(meetingData.goals);
+    const brainstormValue = stringifyListItems(meetingData.brainstorm);
+
     return (
         <Modal onClose={onCancel} title="Edit meeting details" width="x-large">
             <ModalBody>
@@ -222,7 +235,8 @@ export default function EditMeetingModal({
                             <TextArea
                                 name="goals"
                                 label={EDIT_MEETING_FIELD_LABELS.goals}
-                                value={stringifyListItems(meetingData.goals)}
+                                value={goalsValue}
+                                {...getExpandableTextAreaProps(goalsValue, 3, "120px")}
                                 onChange={onUpdateGoals}
                             />
                         </EditableField>
@@ -233,7 +247,12 @@ export default function EditMeetingModal({
                             <TextArea
                                 name="brainstorm"
                                 label={EDIT_MEETING_FIELD_LABELS.brainstorm}
-                                value={stringifyListItems(meetingData.brainstorm)}
+                                value={brainstormValue}
+                                {...getExpandableTextAreaProps(
+                                    brainstormValue,
+                                    7,
+                                    "260px",
+                                )}
                                 onChange={onUpdateBrainstorm}
                             />
                         </EditableField>
