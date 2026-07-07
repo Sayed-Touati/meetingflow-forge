@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   getMeetingNoteRecord,
   listMeetingNotesForDate,
+  removeMeetingNoteRecord,
   saveMeetingNoteRecord,
 } from "../src/meeting-storage.mjs";
 
@@ -12,6 +13,7 @@ function createMemoryKvs(initialValues = {}) {
   const writes = [];
 
   return {
+    deletes: [],
     writes,
     async get(key) {
       return values.get(key);
@@ -19,6 +21,10 @@ function createMemoryKvs(initialValues = {}) {
     async set(key, value) {
       writes.push({ key, value });
       values.set(key, value);
+    },
+    async delete(key) {
+      this.deletes.push(key);
+      values.delete(key);
     },
   };
 }
@@ -164,4 +170,49 @@ test("getMeetingNoteRecord does not load legacy latest note as a selectable meet
   });
 
   assert.equal(await getMeetingNoteRecord(kvs, "latest-meeting-data"), null);
+});
+
+test("removeMeetingNoteRecord deletes the full note and selector index entries", async () => {
+  const kvs = createMemoryKvs({
+    "meeting-note:removed-page": {
+      pageId: "removed-page",
+      title: "Removed sync",
+      date: "2026-07-05",
+    },
+    "meeting-note-index:all": [
+      {
+        pageId: "removed-page",
+        title: "Removed sync",
+        date: "2026-07-05",
+      },
+      {
+        pageId: "kept-page",
+        title: "Kept sync",
+        date: "2026-07-06",
+      },
+    ],
+    "meeting-note-index:2026-07-05": [
+      {
+        pageId: "removed-page",
+        title: "Removed sync",
+        date: "2026-07-05",
+      },
+    ],
+  });
+
+  await removeMeetingNoteRecord(kvs, {
+    pageId: "removed-page",
+    date: "2026-07-05",
+  });
+
+  assert.deepEqual(kvs.deletes, ["meeting-note:removed-page"]);
+  assert.deepEqual(await listMeetingNotesForDate(kvs), [
+    {
+      pageId: "kept-page",
+      title: "Kept sync",
+      date: "2026-07-06",
+    },
+  ]);
+  assert.deepEqual(await listMeetingNotesForDate(kvs, "2026-07-05"), []);
+  assert.equal(await getMeetingNoteRecord(kvs, "removed-page"), null);
 });

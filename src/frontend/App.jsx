@@ -13,6 +13,7 @@ import {
 } from "../automation-settings.mjs";
 import AutomationSettingsDrawer from "./components/AutomationSettingsDrawer";
 import AppHeader from "./components/AppHeader";
+import DeleteMeetingModal from "./components/DeleteMeetingModal";
 import EditMeetingModal from "./components/EditMeetingModal";
 import MeetingDetailsSection from "./components/MeetingDetailsSection";
 import MeetingSelector from "./components/MeetingSelector";
@@ -79,7 +80,9 @@ export default function App() {
     const [isAppInfoVisible, setIsAppInfoVisible] = useState(false);
     const [isDetailsVisible, setIsDetailsVisible] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isSavingMeeting, setIsSavingMeeting] = useState(false);
+    const [isRemovingMeeting, setIsRemovingMeeting] = useState(false);
     const [automationSettings, setAutomationSettings] = useState(
         AUTOMATION_DEFAULT_SETTINGS,
     );
@@ -111,6 +114,7 @@ export default function App() {
         setIsLoadingMeetings(false);
         setIsDetailsVisible(true);
         setIsEditModalOpen(false);
+        setIsDeleteModalOpen(false);
     };
 
     const loadSelectedMeeting = async (pageId) => {
@@ -119,6 +123,7 @@ export default function App() {
             setEditableMeetingData(null);
             setEditableTextDrafts(createEditableTextDrafts());
             setIsEditModalOpen(false);
+            setIsDeleteModalOpen(false);
             return;
         }
 
@@ -297,6 +302,45 @@ export default function App() {
         }
     };
 
+    const clearRemovedMeeting = (removedPageId) => {
+        setMeetingSummaries((currentSummaries) =>
+            currentSummaries.filter((meeting) => meeting.pageId !== removedPageId),
+        );
+        setSelectedMeetingData(null);
+        setEditableMeetingData(null);
+        setEditableTextDrafts(createEditableTextDrafts());
+        setIsDetailsVisible(true);
+    };
+
+    const removeSelectedMeeting = async (operation) => {
+        const resolverName =
+            operation === "archive" ? "archiveMeetingNote" : "deleteMeetingNote";
+        const successMessage =
+            operation === "archive"
+                ? "Meeting note archived in Confluence and removed from MeetingFlow."
+                : "Meeting note deleted in Confluence and removed from MeetingFlow.";
+
+        setIsRemovingMeeting(true);
+
+        try {
+            const result = await invoke(resolverName, {
+                meetingData: displayedMeetingData,
+            });
+
+            clearRemovedMeeting(result?.pageId ?? displayedMeetingData.pageId);
+            setCalendarMessage(successMessage);
+            setIsDeleteModalOpen(false);
+        } catch (error) {
+            setCalendarMessage(
+                operation === "archive"
+                    ? "MeetingFlow could not archive this Confluence page. Please try again."
+                    : "MeetingFlow could not delete this Confluence page. Please try again.",
+            );
+        } finally {
+            setIsRemovingMeeting(false);
+        }
+    };
+
     const openSelectedMeetingInConfluenceEditor = () => {
         const editPageUrl = getConfluenceEditUrl({
             pageId: displayedMeetingData?.pageId,
@@ -405,12 +449,18 @@ export default function App() {
                     isDetailsVisible={isDetailsVisible}
                     meetingData={displayedMeetingData}
                     onCreateCalendarEvent={previewCalendarEvent}
-                    onDelete={() => {}}
+                    onDelete={() => setIsDeleteModalOpen(true)}
                     onEdit={() => setIsEditModalOpen(true)}
                     onEditInConfluence={openSelectedMeetingInConfluenceEditor}
                     onOpenConfluence={openSelectedMeetingInConfluence}
                     onToggleDetails={toggleMeetingDetails}
                 />
+            ) : null}
+
+            {!hasSelectedMeeting && calendarMessage ? (
+                <SectionMessage appearance="info">
+                    <Text>{calendarMessage}</Text>
+                </SectionMessage>
             ) : null}
 
             {hasSelectedMeeting && isEditModalOpen ? (
@@ -426,6 +476,16 @@ export default function App() {
                     onUpdateGoals={updateGoals}
                     onUpdateParticipants={updateParticipants}
                     onUpdateRelatedInfo={updateRelatedInfo}
+                />
+            ) : null}
+
+            {hasSelectedMeeting && isDeleteModalOpen ? (
+                <DeleteMeetingModal
+                    isRemoving={isRemovingMeeting}
+                    meetingTitle={displayedMeetingData.title}
+                    onArchive={() => removeSelectedMeeting("archive")}
+                    onCancel={() => setIsDeleteModalOpen(false)}
+                    onDelete={() => removeSelectedMeeting("delete")}
                 />
             ) : null}
 

@@ -28,6 +28,12 @@ function mergeMeetingNoteIndex(existingIndex, meetingNote) {
   return [nextEntry, ...otherEntries];
 }
 
+function removeMeetingNoteIndexEntry(existingIndex, pageId) {
+  const existingEntries = Array.isArray(existingIndex) ? existingIndex : [];
+
+  return existingEntries.filter((entry) => entry.pageId !== pageId);
+}
+
 export async function saveMeetingNoteRecord(kvsClient, meetingNote) {
   await kvsClient.set(meetingNoteKey(meetingNote.pageId), meetingNote);
 
@@ -47,6 +53,32 @@ export async function saveMeetingNoteRecord(kvsClient, meetingNote) {
   const existingIndex = await kvsClient.get(indexKey);
 
   await kvsClient.set(indexKey, mergeMeetingNoteIndex(existingIndex, meetingNote));
+}
+
+export async function removeMeetingNoteRecord(kvsClient, meetingNote) {
+  if (!meetingNote?.pageId) {
+    return;
+  }
+
+  await kvsClient.delete(meetingNoteKey(meetingNote.pageId));
+
+  const allIndexKey = meetingNoteIndexKey();
+  const existingAllIndex = await kvsClient.get(allIndexKey);
+  await kvsClient.set(
+    allIndexKey,
+    removeMeetingNoteIndexEntry(existingAllIndex, meetingNote.pageId),
+  );
+
+  if (!meetingNote.date) {
+    return;
+  }
+
+  const indexKey = meetingNoteIndexKey(meetingNote.date);
+  const existingIndex = await kvsClient.get(indexKey);
+  await kvsClient.set(
+    indexKey,
+    removeMeetingNoteIndexEntry(existingIndex, meetingNote.pageId),
+  );
 }
 
 export async function listMeetingNotesForDate(kvsClient, date) {
