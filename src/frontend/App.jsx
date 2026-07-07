@@ -18,7 +18,6 @@ import MeetingDetailsSection from "./components/MeetingDetailsSection";
 import MeetingSelector from "./components/MeetingSelector";
 import {
     getEditableInputValue,
-    parseDiscussionTopicsText,
     parseListText,
     parseParticipantsText,
     parseRelatedInfoText,
@@ -76,6 +75,7 @@ export default function App() {
     const [isAppInfoVisible, setIsAppInfoVisible] = useState(false);
     const [isDetailsVisible, setIsDetailsVisible] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isSavingMeeting, setIsSavingMeeting] = useState(false);
     const [automationSettings, setAutomationSettings] = useState(
         AUTOMATION_DEFAULT_SETTINGS,
     );
@@ -165,13 +165,6 @@ export default function App() {
         }));
     };
 
-    const updateDiscussionTopics = (value) => {
-        setEditableMeetingData((currentMeetingData) => ({
-            ...currentMeetingData,
-            discussionTopics: parseDiscussionTopicsText(value),
-        }));
-    };
-
     const updateRelatedInfo = (value) => {
         setEditableMeetingData((currentMeetingData) => {
             const resources = parseRelatedInfoText(value);
@@ -180,6 +173,41 @@ export default function App() {
                 ...currentMeetingData,
                 resources,
                 relatedLinks: relatedLinksFromResources(resources),
+            };
+        });
+    };
+
+    const updateDiscussionTopicField = (topicIndex, fieldName, value) => {
+        setEditableMeetingData((currentMeetingData) => {
+            const discussionTopics = [...(currentMeetingData.discussionTopics ?? [])];
+            const currentTopic = discussionTopics[topicIndex] ?? {};
+            const fieldValue = getEditableInputValue(value);
+            let nextValue = fieldValue;
+
+            if (fieldName === "presenter") {
+                const presenters = fieldValue
+                    .split(",")
+                    .map((presenter) => presenter.trim())
+                    .filter(Boolean)
+                    .map((displayName) => ({ displayName }));
+
+                nextValue = presenters.length > 1 ? presenters : presenters[0] ?? null;
+            }
+
+            if (fieldName === "notes") {
+                const noteLines = parseListText(fieldValue);
+
+                nextValue = noteLines.length > 1 ? noteLines : noteLines[0] ?? "";
+            }
+
+            discussionTopics[topicIndex] = {
+                ...currentTopic,
+                [fieldName]: nextValue,
+            };
+
+            return {
+                ...currentMeetingData,
+                discussionTopics,
             };
         });
     };
@@ -196,9 +224,26 @@ export default function App() {
         loadMeetingSummaries("");
     };
 
-    const handleSaveModalChanges = () => {
-        setSelectedMeetingData(editableMeetingData);
-        setIsEditModalOpen(false);
+    const handleSaveModalChanges = async () => {
+        setIsSavingMeeting(true);
+
+        try {
+            const result = await invoke("saveLatestMeetingData", {
+                meetingData: editableMeetingData,
+            });
+            const savedMeetingData = result?.meetingData ?? editableMeetingData;
+
+            setSelectedMeetingData(savedMeetingData);
+            setEditableMeetingData(savedMeetingData);
+            setCalendarMessage("Meeting details saved to Confluence and MeetingFlow.");
+            setIsEditModalOpen(false);
+        } catch (error) {
+            setCalendarMessage(
+                "MeetingFlow could not save these changes to Confluence. Please try again.",
+            );
+        } finally {
+            setIsSavingMeeting(false);
+        }
     };
 
     const openSelectedMeetingInConfluenceEditor = () => {
@@ -319,11 +364,12 @@ export default function App() {
 
             {hasSelectedMeeting && isEditModalOpen ? (
                 <EditMeetingModal
+                    isSaving={isSavingMeeting}
                     meetingData={displayedMeetingData}
                     onCancel={() => setIsEditModalOpen(false)}
                     onSave={handleSaveModalChanges}
                     onUpdateBrainstorm={updateBrainstorm}
-                    onUpdateDiscussionTopics={updateDiscussionTopics}
+                    onUpdateDiscussionTopicField={updateDiscussionTopicField}
                     onUpdateField={updateMeetingField}
                     onUpdateGoals={updateGoals}
                     onUpdateParticipants={updateParticipants}

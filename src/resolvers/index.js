@@ -2,6 +2,7 @@ import Resolver from "@forge/resolver";
 import api, { route } from "@forge/api";
 import { kvs } from "@forge/kvs";
 import { syncMeetingNotesFromConfluence } from "../meeting-note-sync.mjs";
+import { updateConfluenceMeetingNotePage } from "../meeting-confluence-update.mjs";
 import {
   getMeetingNoteRecord,
   listMeetingNotesForDate,
@@ -47,10 +48,30 @@ resolver.define("saveLatestMeetingData", async (req) => {
     };
   }
 
-  await saveMeetingNoteRecord(kvs, meetingData);
+  const savedMeetingData = meetingData.pageId
+    ? await updateConfluenceMeetingNotePage({
+        meetingData,
+        fetchPage: (pageId) =>
+          api
+            .asUser()
+            .requestConfluence(route`/wiki/api/v2/pages/${pageId}?body-format=storage`),
+        updatePage: (pageId, body) =>
+          api.asUser().requestConfluence(route`/wiki/api/v2/pages/${pageId}`, {
+            method: "PUT",
+            headers: {
+              "Accept": "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+          }),
+      })
+    : meetingData;
+
+  await saveMeetingNoteRecord(kvs, savedMeetingData);
 
   return {
     success: true,
+    meetingData: savedMeetingData,
     message: "Meeting data saved.",
   };
 });

@@ -1,6 +1,8 @@
 export const EDIT_MEETING_FIELD_LABELS = {
     title: "Title",
     date: "Date",
+    startTime: "Start time",
+    endTime: "End time",
     time: "Time",
     participants: "Participants",
     goals: "Goals",
@@ -51,6 +53,33 @@ export function getEditableInputValue(value) {
 
 function cleanEditableText(value) {
     return getEditableInputValue(value).trim();
+}
+
+export function getTimePickerValue(value) {
+    const match = cleanEditableText(value).match(/^(\d{1,2}):(\d{2})(?:\s*([ap])\.?m\.?)?$/i);
+
+    if (!match) {
+        return "";
+    }
+
+    const [, hourText, minuteText, meridiem] = match;
+    let hour = Number(hourText);
+    const minute = Number(minuteText);
+
+    if (minute > 59 || hour > 23 || (meridiem && hour > 12)) {
+        return "";
+    }
+
+    if (meridiem) {
+        const normalizedMeridiem = meridiem.toLowerCase();
+        hour = hour % 12;
+
+        if (normalizedMeridiem === "p") {
+            hour += 12;
+        }
+    }
+
+    return `${String(hour).padStart(2, "0")}:${minuteText}`;
 }
 
 function textLines(value) {

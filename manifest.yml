@@ -37,3 +37,4 @@ permissions:
     - read:page:confluence
     - search:confluence
     - storage:app
+    - write:page:confluence

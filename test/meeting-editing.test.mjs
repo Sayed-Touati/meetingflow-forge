@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   EDIT_MEETING_FIELD_LABELS,
   getEditableInputValue,
+  getTimePickerValue,
   parseDiscussionTopicsText,
   parseListText,
   parseParticipantsText,
@@ -19,6 +20,8 @@ test("edit meeting labels match the Confluence meeting note fields", () => {
   assert.deepEqual(EDIT_MEETING_FIELD_LABELS, {
     title: "Title",
     date: "Date",
+    startTime: "Start time",
+    endTime: "End time",
     time: "Time",
     participants: "Participants",
     goals: "Goals",
@@ -94,6 +97,13 @@ test("discussion topic editing helpers preserve table fields", () => {
       },
     ],
   );
+});
+
+test("time picker values use the strict twenty-four hour format", () => {
+  assert.equal(getTimePickerValue("10:00 am"), "10:00");
+  assert.equal(getTimePickerValue("2:05 PM"), "14:05");
+  assert.equal(getTimePickerValue("14:30"), "14:30");
+  assert.equal(getTimePickerValue("not a time"), "");
 });
 
 test("related info editing helpers preserve Confluence-style link labels", () => {

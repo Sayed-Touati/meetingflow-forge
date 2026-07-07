@@ -3,51 +3,39 @@ import {
     Box,
     Button,
     DatePicker,
-    Heading,
+    DynamicTable,
     Inline,
     Modal,
     ModalBody,
     ModalFooter,
     Stack,
+    Text,
     TextArea,
     Textfield,
-    Text,
+    TimePicker,
     xcss,
 } from "@forge/react";
 import {
     EDIT_MEETING_FIELD_LABELS,
-    stringifyDiscussionTopics,
+    getTimePickerValue,
     stringifyListItems,
     stringifyParticipants,
     stringifyRelatedInfo,
 } from "../meeting-editing.mjs";
 
-const sectionStyles = xcss({
-    backgroundColor: "color.background.neutral.subtle",
-    borderColor: "color.border",
-    borderRadius: "border.radius.100",
-    borderStyle: "solid",
-    borderWidth: "border.width",
-    paddingBlock: "space.200",
-    paddingInline: "space.200",
-});
-
 const fieldGroupStyles = xcss({
-    minWidth: "180px",
+    flexGrow: 1,
+    minWidth: "160px",
 });
 
-function FieldLabel({ children }) {
-    return (
-        <Text color="color.text" weight="bold">
-            {children}
-        </Text>
-    );
-}
+const wideFieldStyles = xcss({
+    paddingBlockEnd: "space.100",
+});
 
-function LabeledField({ children, label }) {
+function EditableField({ children, label }) {
     return (
         <Stack space="space.075">
-            <FieldLabel>{label}</FieldLabel>
+            <Text weight="bold">{label}</Text>
             {children}
         </Stack>
     );
@@ -66,30 +54,103 @@ function getEditableResources(meetingData) {
     }));
 }
 
-function EditSection({ children, description, title }) {
+function getPersonLabel(person) {
+    if (Array.isArray(person)) {
+        return person.map(getPersonLabel).filter(Boolean).join(", ");
+    }
+
+    if (typeof person === "string") {
+        return person;
+    }
+
+    return person?.displayName || person?.name || person?.accountId || "";
+}
+
+function getNotesText(notes) {
+    return Array.isArray(notes) ? notes.join("\n") : notes ?? "";
+}
+
+function DiscussionTopicsEditor({ onUpdateTopicField, topics }) {
     return (
-        <Box xcss={sectionStyles}>
-            <Stack space="space.150">
-                <Stack space="space.050">
-                    <Heading as="h3">{title}</Heading>
-                    {description ? (
-                        <Text color="color.text.subtle" size="small">
-                            {description}
-                        </Text>
-                    ) : null}
-                </Stack>
-                {children}
-            </Stack>
-        </Box>
+        <EditableField label={EDIT_MEETING_FIELD_LABELS.discussionTopics}>
+            <DynamicTable
+                head={{
+                    cells: [
+                        { key: "time", content: "Time" },
+                        { key: "topic", content: "Topic" },
+                        { key: "presenter", content: "Presenter" },
+                        { key: "notes", content: "Notes" },
+                    ],
+                }}
+                rows={(topics ?? []).map((topic, index) => ({
+                    key: `editable-topic-${index}`,
+                    cells: [
+                        {
+                            key: `time-${index}`,
+                            content: (
+                                <TimePicker
+                                    name={`topic-time-${index}`}
+                                    label="Time"
+                                    defaultValue={getTimePickerValue(topic.time)}
+                                    onChange={(value) =>
+                                        onUpdateTopicField(index, "time", value)
+                                    }
+                                />
+                            ),
+                        },
+                        {
+                            key: `topic-${index}`,
+                            content: (
+                                <Textfield
+                                    name={`topic-name-${index}`}
+                                    label="Topic"
+                                    value={topic.topic ?? ""}
+                                    onChange={(value) =>
+                                        onUpdateTopicField(index, "topic", value)
+                                    }
+                                />
+                            ),
+                        },
+                        {
+                            key: `presenter-${index}`,
+                            content: (
+                                <Textfield
+                                    name={`topic-presenter-${index}`}
+                                    label="Presenter"
+                                    value={getPersonLabel(topic.presenter)}
+                                    onChange={(value) =>
+                                        onUpdateTopicField(index, "presenter", value)
+                                    }
+                                />
+                            ),
+                        },
+                        {
+                            key: `notes-${index}`,
+                            content: (
+                                <TextArea
+                                    name={`topic-notes-${index}`}
+                                    label="Notes"
+                                    value={getNotesText(topic.notes)}
+                                    onChange={(value) =>
+                                        onUpdateTopicField(index, "notes", value)
+                                    }
+                                />
+                            ),
+                        },
+                    ],
+                }))}
+            />
+        </EditableField>
     );
 }
 
 export default function EditMeetingModal({
+    isSaving,
     meetingData,
     onCancel,
     onSave,
     onUpdateBrainstorm,
-    onUpdateDiscussionTopics,
+    onUpdateDiscussionTopicField,
     onUpdateField,
     onUpdateGoals,
     onUpdateParticipants,
@@ -98,128 +159,109 @@ export default function EditMeetingModal({
     return (
         <Modal onClose={onCancel} title="Edit meeting details" width="x-large">
             <ModalBody>
-                <Stack space="space.200">
-                    <EditSection
-                        title="Meeting information"
-                        description="Core details used by the meeting card and calendar handoff."
-                    >
-                        <Stack space="space.150">
-                            <LabeledField label={EDIT_MEETING_FIELD_LABELS.title}>
+                <Stack space="space.250">
+                    <Inline space="space.150" rowSpace="space.150" shouldWrap>
+                        <Box xcss={fieldGroupStyles}>
+                            <EditableField label={EDIT_MEETING_FIELD_LABELS.title}>
                                 <Textfield
                                     name="title"
                                     label={EDIT_MEETING_FIELD_LABELS.title}
                                     value={meetingData.title ?? ""}
                                     onChange={(value) => onUpdateField("title", value)}
                                 />
-                            </LabeledField>
+                            </EditableField>
+                        </Box>
 
-                            <Inline space="space.150" rowSpace="space.150" shouldWrap>
-                                <Box xcss={fieldGroupStyles}>
-                                    <LabeledField label={EDIT_MEETING_FIELD_LABELS.date}>
-                                        <DatePicker
-                                            name="meeting-date"
-                                            label={EDIT_MEETING_FIELD_LABELS.date}
-                                            defaultValue={meetingData.date}
-                                            onChange={(value) => onUpdateField("date", value)}
-                                        />
-                                    </LabeledField>
-                                </Box>
-
-                                <Box xcss={fieldGroupStyles}>
-                                    <LabeledField label={EDIT_MEETING_FIELD_LABELS.time}>
-                                        <Textfield
-                                            name="start-time"
-                                            label="Start time"
-                                            value={meetingData.startTime ?? ""}
-                                            onChange={(value) =>
-                                                onUpdateField("startTime", value)
-                                            }
-                                        />
-                                    </LabeledField>
-                                </Box>
-
-                                <Box xcss={fieldGroupStyles}>
-                                    <LabeledField label={EDIT_MEETING_FIELD_LABELS.time}>
-                                        <Textfield
-                                            name="end-time"
-                                            label="End time"
-                                            value={meetingData.endTime ?? ""}
-                                            onChange={(value) => onUpdateField("endTime", value)}
-                                        />
-                                    </LabeledField>
-                                </Box>
-                            </Inline>
-                        </Stack>
-                    </EditSection>
-
-                    <EditSection
-                        title="People and lists"
-                        description="Edit the names and extracted list sections shown in the meeting card."
-                    >
-                        <Stack space="space.150">
-                            <LabeledField label={EDIT_MEETING_FIELD_LABELS.participants}>
-                                <TextArea
-                                    name="participants"
-                                    label={EDIT_MEETING_FIELD_LABELS.participants}
-                                    value={stringifyParticipants(meetingData.participants)}
-                                    onChange={onUpdateParticipants}
+                        <Box xcss={fieldGroupStyles}>
+                            <EditableField label={EDIT_MEETING_FIELD_LABELS.date}>
+                                <DatePicker
+                                    name="meeting-date"
+                                    label={EDIT_MEETING_FIELD_LABELS.date}
+                                    defaultValue={meetingData.date}
+                                    onChange={(value) => onUpdateField("date", value)}
                                 />
-                            </LabeledField>
-                            <LabeledField label={EDIT_MEETING_FIELD_LABELS.goals}>
-                                <TextArea
-                                    name="goals"
-                                    label={EDIT_MEETING_FIELD_LABELS.goals}
-                                    value={stringifyListItems(meetingData.goals)}
-                                    onChange={onUpdateGoals}
-                                />
-                            </LabeledField>
-                            <LabeledField label={EDIT_MEETING_FIELD_LABELS.brainstorm}>
-                                <TextArea
-                                    name="brainstorm"
-                                    label={EDIT_MEETING_FIELD_LABELS.brainstorm}
-                                    value={stringifyListItems(meetingData.brainstorm)}
-                                    onChange={onUpdateBrainstorm}
-                                />
-                            </LabeledField>
-                        </Stack>
-                    </EditSection>
+                            </EditableField>
+                        </Box>
 
-                    <EditSection
-                        title="Discussion topics"
-                        description="Each row keeps time, topic, presenter, and notes together."
-                    >
-                        <LabeledField label={EDIT_MEETING_FIELD_LABELS.discussionTopics}>
+                        <Box xcss={fieldGroupStyles}>
+                            <EditableField label={EDIT_MEETING_FIELD_LABELS.startTime}>
+                                <TimePicker
+                                    name="start-time"
+                                    label={EDIT_MEETING_FIELD_LABELS.startTime}
+                                    defaultValue={getTimePickerValue(meetingData.startTime)}
+                                    onChange={(value) => onUpdateField("startTime", value)}
+                                />
+                            </EditableField>
+                        </Box>
+
+                        <Box xcss={fieldGroupStyles}>
+                            <EditableField label={EDIT_MEETING_FIELD_LABELS.endTime}>
+                                <TimePicker
+                                    name="end-time"
+                                    label={EDIT_MEETING_FIELD_LABELS.endTime}
+                                    defaultValue={getTimePickerValue(meetingData.endTime)}
+                                    onChange={(value) => onUpdateField("endTime", value)}
+                                />
+                            </EditableField>
+                        </Box>
+                    </Inline>
+
+                    <Box xcss={wideFieldStyles}>
+                        <EditableField label={EDIT_MEETING_FIELD_LABELS.participants}>
                             <TextArea
-                                name="discussion-topics"
-                                label={EDIT_MEETING_FIELD_LABELS.discussionTopics}
-                                isMonospaced
-                                value={stringifyDiscussionTopics(meetingData.discussionTopics)}
-                                onChange={onUpdateDiscussionTopics}
+                                name="participants"
+                                label={EDIT_MEETING_FIELD_LABELS.participants}
+                                value={stringifyParticipants(meetingData.participants)}
+                                onChange={onUpdateParticipants}
                             />
-                        </LabeledField>
-                    </EditSection>
+                        </EditableField>
+                    </Box>
 
-                    <EditSection
-                        title="Related info"
-                        description="Supporting links and resources shown at the bottom of the card."
-                    >
-                        <LabeledField label={EDIT_MEETING_FIELD_LABELS.relatedInfo}>
+                    <Box xcss={wideFieldStyles}>
+                        <EditableField label={EDIT_MEETING_FIELD_LABELS.goals}>
+                            <TextArea
+                                name="goals"
+                                label={EDIT_MEETING_FIELD_LABELS.goals}
+                                value={stringifyListItems(meetingData.goals)}
+                                onChange={onUpdateGoals}
+                            />
+                        </EditableField>
+                    </Box>
+
+                    <Box xcss={wideFieldStyles}>
+                        <EditableField label={EDIT_MEETING_FIELD_LABELS.brainstorm}>
+                            <TextArea
+                                name="brainstorm"
+                                label={EDIT_MEETING_FIELD_LABELS.brainstorm}
+                                value={stringifyListItems(meetingData.brainstorm)}
+                                onChange={onUpdateBrainstorm}
+                            />
+                        </EditableField>
+                    </Box>
+
+                    <DiscussionTopicsEditor
+                        onUpdateTopicField={onUpdateDiscussionTopicField}
+                        topics={meetingData.discussionTopics}
+                    />
+
+                    <Box xcss={wideFieldStyles}>
+                        <EditableField label={EDIT_MEETING_FIELD_LABELS.relatedInfo}>
                             <TextArea
                                 name="related-info"
                                 label={EDIT_MEETING_FIELD_LABELS.relatedInfo}
                                 value={stringifyRelatedInfo(getEditableResources(meetingData))}
                                 onChange={onUpdateRelatedInfo}
                             />
-                        </LabeledField>
-                    </EditSection>
+                        </EditableField>
+                    </Box>
                 </Stack>
             </ModalBody>
             <ModalFooter>
                 <Button appearance="subtle" onClick={onCancel}>
                     Cancel
                 </Button>
-                <Button appearance="primary" onClick={onSave}>
-                    Save changes
+                <Button appearance="primary" disabled={isSaving} onClick={onSave}>
+                    {isSaving ? "Saving..." : "Save changes"}
                 </Button>
             </ModalFooter>
         </Modal>
