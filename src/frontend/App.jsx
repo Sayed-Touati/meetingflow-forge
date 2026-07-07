@@ -17,6 +17,7 @@ import EditMeetingModal from "./components/EditMeetingModal";
 import MeetingDetailsSection from "./components/MeetingDetailsSection";
 import MeetingSelector from "./components/MeetingSelector";
 import {
+    createEditableTextDrafts,
     getEditableInputValue,
     parseListText,
     parseParticipantsText,
@@ -69,6 +70,9 @@ export default function App() {
     const [meetingSummaries, setMeetingSummaries] = useState([]);
     const [selectedMeetingData, setSelectedMeetingData] = useState(null);
     const [editableMeetingData, setEditableMeetingData] = useState(null);
+    const [editableTextDrafts, setEditableTextDrafts] = useState(
+        createEditableTextDrafts(),
+    );
     const [isLoadingMeetings, setIsLoadingMeetings] = useState(true);
     const [isLoadingMeeting, setIsLoadingMeeting] = useState(false);
     const [calendarMessage, setCalendarMessage] = useState("");
@@ -103,6 +107,7 @@ export default function App() {
         setMeetingSummaries(summaries ?? []);
         setSelectedMeetingData(null);
         setEditableMeetingData(null);
+        setEditableTextDrafts(createEditableTextDrafts());
         setIsLoadingMeetings(false);
         setIsDetailsVisible(true);
         setIsEditModalOpen(false);
@@ -112,6 +117,7 @@ export default function App() {
         if (!pageId) {
             setSelectedMeetingData(null);
             setEditableMeetingData(null);
+            setEditableTextDrafts(createEditableTextDrafts());
             setIsEditModalOpen(false);
             return;
         }
@@ -123,6 +129,7 @@ export default function App() {
 
         setSelectedMeetingData(meetingData);
         setEditableMeetingData(meetingData);
+        setEditableTextDrafts(createEditableTextDrafts(meetingData));
         setIsLoadingMeeting(false);
         setIsDetailsVisible(true);
     };
@@ -145,29 +152,53 @@ export default function App() {
     };
 
     const updateGoals = (value) => {
+        const textValue = getEditableInputValue(value);
+
+        setEditableTextDrafts((currentDrafts) => ({
+            ...currentDrafts,
+            goals: textValue,
+        }));
         setEditableMeetingData((currentMeetingData) => ({
             ...currentMeetingData,
-            goals: parseListText(value),
+            goals: parseListText(textValue),
         }));
     };
 
     const updateBrainstorm = (value) => {
+        const textValue = getEditableInputValue(value);
+
+        setEditableTextDrafts((currentDrafts) => ({
+            ...currentDrafts,
+            brainstorm: textValue,
+        }));
         setEditableMeetingData((currentMeetingData) => ({
             ...currentMeetingData,
-            brainstorm: parseListText(value),
+            brainstorm: parseListText(textValue),
         }));
     };
 
     const updateParticipants = (value) => {
+        const textValue = getEditableInputValue(value);
+
+        setEditableTextDrafts((currentDrafts) => ({
+            ...currentDrafts,
+            participants: textValue,
+        }));
         setEditableMeetingData((currentMeetingData) => ({
             ...currentMeetingData,
-            participants: parseParticipantsText(value),
+            participants: parseParticipantsText(textValue),
         }));
     };
 
     const updateRelatedInfo = (value) => {
+        const textValue = getEditableInputValue(value);
+
+        setEditableTextDrafts((currentDrafts) => ({
+            ...currentDrafts,
+            relatedInfo: textValue,
+        }));
         setEditableMeetingData((currentMeetingData) => {
-            const resources = parseRelatedInfoText(value);
+            const resources = parseRelatedInfoText(textValue);
 
             return {
                 ...currentMeetingData,
@@ -178,10 +209,29 @@ export default function App() {
     };
 
     const updateDiscussionTopicField = (topicIndex, fieldName, value) => {
+        const fieldValue = getEditableInputValue(value);
+
+        if (fieldName === "presenter" || fieldName === "notes") {
+            setEditableTextDrafts((currentDrafts) => {
+                const discussionTopics = [
+                    ...(currentDrafts.discussionTopics ?? []),
+                ];
+
+                discussionTopics[topicIndex] = {
+                    ...(discussionTopics[topicIndex] ?? {}),
+                    [fieldName]: fieldValue,
+                };
+
+                return {
+                    ...currentDrafts,
+                    discussionTopics,
+                };
+            });
+        }
+
         setEditableMeetingData((currentMeetingData) => {
             const discussionTopics = [...(currentMeetingData.discussionTopics ?? [])];
             const currentTopic = discussionTopics[topicIndex] ?? {};
-            const fieldValue = getEditableInputValue(value);
             let nextValue = fieldValue;
 
             if (fieldName === "presenter") {
@@ -235,6 +285,7 @@ export default function App() {
 
             setSelectedMeetingData(savedMeetingData);
             setEditableMeetingData(savedMeetingData);
+            setEditableTextDrafts(createEditableTextDrafts(savedMeetingData));
             setCalendarMessage("Meeting details saved to Confluence and MeetingFlow.");
             setIsEditModalOpen(false);
         } catch (error) {
@@ -365,6 +416,7 @@ export default function App() {
             {hasSelectedMeeting && isEditModalOpen ? (
                 <EditMeetingModal
                     isSaving={isSavingMeeting}
+                    editableTextDrafts={editableTextDrafts}
                     meetingData={displayedMeetingData}
                     onCancel={() => setIsEditModalOpen(false)}
                     onSave={handleSaveModalChanges}

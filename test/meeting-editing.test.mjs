@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  createEditableTextDrafts,
   EDIT_MEETING_FIELD_LABELS,
   getEditableInputValue,
   getTimePickerValue,
@@ -70,6 +71,44 @@ test("editable input helpers read text from Forge change events", () => {
     "Confirm launch plan",
     "Review calendar automation",
   ]);
+});
+
+test("editable text drafts start from multiline list values", () => {
+  assert.deepEqual(
+    createEditableTextDrafts({
+      participants: [{ displayName: "Sayed Touati" }, { displayName: "Iheb Touati" }],
+      goals: ["Confirm launch plan", "Review calendar automation"],
+      brainstorm: ["Should edits preserve spaces?", "Should Enter create a line?"],
+      discussionTopics: [
+        {
+          time: "10:00",
+          topic: "UI structure",
+          presenter: { displayName: "Sayed Touati" },
+          notes: ["Keep it focused.", "Allow multiline notes."],
+        },
+      ],
+      resources: [
+        {
+          title: "Google Meet",
+          linkText: "link",
+          url: "https://meet.google.com/pio-ecmh-dzw",
+          type: "google-meet",
+        },
+      ],
+    }),
+    {
+      participants: "Sayed Touati\nIheb Touati",
+      goals: "Confirm launch plan\nReview calendar automation",
+      brainstorm: "Should edits preserve spaces?\nShould Enter create a line?",
+      discussionTopics: [
+        {
+          presenter: "Sayed Touati",
+          notes: "Keep it focused.\nAllow multiline notes.",
+        },
+      ],
+      relatedInfo: "Google Meet: link | https://meet.google.com/pio-ecmh-dzw",
+    },
+  );
 });
 
 test("discussion topic editing helpers preserve table fields", () => {

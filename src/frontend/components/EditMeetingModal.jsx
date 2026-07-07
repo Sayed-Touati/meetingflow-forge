@@ -80,7 +80,7 @@ function getNotesText(notes) {
     return Array.isArray(notes) ? notes.join("\n") : notes ?? "";
 }
 
-function DiscussionTopicsEditor({ onUpdateTopicField, topics }) {
+function DiscussionTopicsEditor({ editableTopicDrafts, onUpdateTopicField, topics }) {
     return (
         <EditableField label={EDIT_MEETING_FIELD_LABELS.discussionTopics}>
             <DynamicTable
@@ -127,7 +127,10 @@ function DiscussionTopicsEditor({ onUpdateTopicField, topics }) {
                                 <Textfield
                                     name={`topic-presenter-${index}`}
                                     label="Presenter"
-                                    value={getPersonLabel(topic.presenter)}
+                                    value={
+                                        editableTopicDrafts?.[index]?.presenter ??
+                                        getPersonLabel(topic.presenter)
+                                    }
                                     onChange={(value) =>
                                         onUpdateTopicField(index, "presenter", value)
                                     }
@@ -140,7 +143,10 @@ function DiscussionTopicsEditor({ onUpdateTopicField, topics }) {
                                 <TextArea
                                     name={`topic-notes-${index}`}
                                     label="Notes"
-                                    value={getNotesText(topic.notes)}
+                                    value={
+                                        editableTopicDrafts?.[index]?.notes ??
+                                        getNotesText(topic.notes)
+                                    }
                                     onChange={(value) =>
                                         onUpdateTopicField(index, "notes", value)
                                     }
@@ -155,6 +161,7 @@ function DiscussionTopicsEditor({ onUpdateTopicField, topics }) {
 }
 
 export default function EditMeetingModal({
+    editableTextDrafts,
     isSaving,
     meetingData,
     onCancel,
@@ -166,8 +173,16 @@ export default function EditMeetingModal({
     onUpdateParticipants,
     onUpdateRelatedInfo,
 }) {
-    const goalsValue = stringifyListItems(meetingData.goals);
-    const brainstormValue = stringifyListItems(meetingData.brainstorm);
+    const participantsValue =
+        editableTextDrafts?.participants ??
+        stringifyParticipants(meetingData.participants);
+    const goalsValue =
+        editableTextDrafts?.goals ?? stringifyListItems(meetingData.goals);
+    const brainstormValue =
+        editableTextDrafts?.brainstorm ?? stringifyListItems(meetingData.brainstorm);
+    const relatedInfoValue =
+        editableTextDrafts?.relatedInfo ??
+        stringifyRelatedInfo(getEditableResources(meetingData));
 
     return (
         <Modal onClose={onCancel} title="Edit meeting details" width="x-large">
@@ -224,7 +239,7 @@ export default function EditMeetingModal({
                             <TextArea
                                 name="participants"
                                 label={EDIT_MEETING_FIELD_LABELS.participants}
-                                value={stringifyParticipants(meetingData.participants)}
+                                value={participantsValue}
                                 onChange={onUpdateParticipants}
                             />
                         </EditableField>
@@ -259,6 +274,7 @@ export default function EditMeetingModal({
                     </Box>
 
                     <DiscussionTopicsEditor
+                        editableTopicDrafts={editableTextDrafts?.discussionTopics}
                         onUpdateTopicField={onUpdateDiscussionTopicField}
                         topics={meetingData.discussionTopics}
                     />
@@ -268,7 +284,7 @@ export default function EditMeetingModal({
                             <TextArea
                                 name="related-info"
                                 label={EDIT_MEETING_FIELD_LABELS.relatedInfo}
-                                value={stringifyRelatedInfo(getEditableResources(meetingData))}
+                                value={relatedInfoValue}
                                 onChange={onUpdateRelatedInfo}
                             />
                         </EditableField>

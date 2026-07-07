@@ -1,7 +1,7 @@
-import { encodeHTML } from "entities";
+import { encodeXML } from "entities";
 
 function escapeText(value) {
-  return encodeHTML(String(value ?? ""));
+  return encodeXML(String(value ?? ""));
 }
 
 function getPersonLabel(person) {

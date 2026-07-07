@@ -146,6 +146,28 @@ export function stringifyListItems(items, formatter = (item) => item) {
         .join("\n");
 }
 
+export function createEditableTextDrafts(meetingData) {
+    return {
+        participants: stringifyParticipants(meetingData?.participants),
+        goals: stringifyListItems(meetingData?.goals),
+        brainstorm: stringifyListItems(meetingData?.brainstorm),
+        discussionTopics: (meetingData?.discussionTopics ?? []).map((topic) => ({
+            presenter: getPersonLabel(topic?.presenter),
+            notes: Array.isArray(topic?.notes) ? topic.notes.join("\n") : topic?.notes ?? "",
+        })),
+        relatedInfo: stringifyRelatedInfo(
+            meetingData?.resources?.length
+                ? meetingData.resources
+                : (meetingData?.relatedLinks ?? []).map((link) => ({
+                      title: link.text || link.href,
+                      linkText: link.linkText,
+                      url: link.href,
+                      type: link.type,
+                  })),
+        ),
+    };
+}
+
 export function stringifyParticipants(participants) {
     return stringifyListItems(participants, getPersonLabel);
 }
