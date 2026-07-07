@@ -1,4 +1,4 @@
-async function readUserDisplayName(response, accountId) {
+async function readUserProfile(response, accountId) {
   if (!response.ok) {
     console.log("MeetingFlow could not resolve participant display name.", {
       accountId,
@@ -11,26 +11,29 @@ async function readUserDisplayName(response, accountId) {
 
   const user = await response.json();
 
-  return user?.displayName || user?.publicName;
+  return {
+    displayName: user?.displayName || user?.publicName,
+    email: user?.email || user?.emailAddress,
+  };
 }
 
-async function getDisplayNameForAccountId(accountId, { displayNamesByAccountId, fetchUser }) {
-  if (!displayNamesByAccountId.has(accountId)) {
+async function getProfileForAccountId(accountId, { profilesByAccountId, fetchUser }) {
+  if (!profilesByAccountId.has(accountId)) {
     const userResponse = await fetchUser(accountId);
-    const displayName = await readUserDisplayName(userResponse, accountId);
+    const profile = await readUserProfile(userResponse, accountId);
 
-    displayNamesByAccountId.set(accountId, displayName);
+    profilesByAccountId.set(accountId, profile);
   }
 
-  return displayNamesByAccountId.get(accountId);
+  return profilesByAccountId.get(accountId);
 }
 
-async function resolvePersonDisplayName(person, { displayNamesByAccountId, fetchUser }) {
+async function resolvePersonDisplayName(person, { profilesByAccountId, fetchUser }) {
   if (Array.isArray(person)) {
     return Promise.all(
       person.map((personItem) =>
         resolvePersonDisplayName(personItem, {
-          displayNamesByAccountId,
+          profilesByAccountId,
           fetchUser,
         }),
       ),
@@ -41,8 +44,8 @@ async function resolvePersonDisplayName(person, { displayNamesByAccountId, fetch
     return person;
   }
 
-  const displayName = await getDisplayNameForAccountId(person.accountId, {
-    displayNamesByAccountId,
+  const profile = await getProfileForAccountId(person.accountId, {
+    profilesByAccountId,
     fetchUser,
   });
   const { name, ...normalizedPerson } = person;
@@ -53,7 +56,10 @@ async function resolvePersonDisplayName(person, { displayNamesByAccountId, fetch
     // Atlassian's user payloads and keeps the meeting object ready for
     // later attendee-mapping workflows. The name fallback preserves older
     // records that were saved before this normalized shape existed.
-    displayName: displayName || person.displayName || name,
+    displayName: profile?.displayName || person.displayName || name,
+    ...(profile?.email || person.email || person.emailAddress
+      ? { email: profile?.email || person.email || person.emailAddress }
+      : {}),
   };
 }
 
@@ -62,12 +68,12 @@ export async function resolveParticipantDisplayNames(meetingNote, { fetchUser })
     return meetingNote;
   }
 
-  const displayNamesByAccountId = new Map();
+  const profilesByAccountId = new Map();
 
   const participants = await Promise.all(
     (meetingNote.participants ?? []).map((participant) =>
       resolvePersonDisplayName(participant, {
-        displayNamesByAccountId,
+        profilesByAccountId,
         fetchUser,
       }),
     ),
@@ -76,7 +82,7 @@ export async function resolveParticipantDisplayNames(meetingNote, { fetchUser })
     (meetingNote.discussionTopics ?? []).map(async (topic) => ({
       ...topic,
       presenter: await resolvePersonDisplayName(topic.presenter, {
-        displayNamesByAccountId,
+        profilesByAccountId,
         fetchUser,
       }),
     })),

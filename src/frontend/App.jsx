@@ -11,8 +11,13 @@ import {
     AUTOMATION_DEFAULT_SETTINGS,
     createAutomationSettingsDraft,
 } from "../automation-settings.mjs";
+import {
+    createCalendarEventDraft,
+    validateCalendarEventDraft,
+} from "../calendar-event-form.mjs";
 import AutomationSettingsDrawer from "./components/AutomationSettingsDrawer";
 import AppHeader from "./components/AppHeader";
+import CreateCalendarEventModal from "./components/CreateCalendarEventModal";
 import DeleteMeetingModal from "./components/DeleteMeetingModal";
 import EditMeetingModal from "./components/EditMeetingModal";
 import MeetingDetailsSection from "./components/MeetingDetailsSection";
@@ -25,22 +30,6 @@ import {
     parseRelatedInfoText,
     relatedLinksFromResources,
 } from "./meeting-editing.mjs";
-
-function getGoogleMeetLink(meetingData) {
-    const googleMeetResource = meetingData?.resources?.find(
-        (resource) => resource.type === "google-meet",
-    );
-
-    if (googleMeetResource) {
-        return {
-            href: googleMeetResource.url,
-            text: googleMeetResource.title,
-            type: googleMeetResource.type,
-        };
-    }
-
-    return meetingData?.relatedLinks?.find((link) => link.type === "google-meet");
-}
 
 function getConfluenceEditUrl({ pageId, pageUrl }) {
     if (!pageUrl) {
@@ -81,8 +70,14 @@ export default function App() {
     const [isDetailsVisible, setIsDetailsVisible] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
+    const [calendarEventDraft, setCalendarEventDraft] = useState(null);
+    const [calendarFieldErrors, setCalendarFieldErrors] = useState({});
+    const [calendarGuestErrors, setCalendarGuestErrors] = useState({});
+    const [calendarErrorMessage, setCalendarErrorMessage] = useState("");
     const [isSavingMeeting, setIsSavingMeeting] = useState(false);
     const [isRemovingMeeting, setIsRemovingMeeting] = useState(false);
+    const [isCreatingCalendarEvent, setIsCreatingCalendarEvent] = useState(false);
     const [automationSettings, setAutomationSettings] = useState(
         AUTOMATION_DEFAULT_SETTINGS,
     );
@@ -115,6 +110,8 @@ export default function App() {
         setIsDetailsVisible(true);
         setIsEditModalOpen(false);
         setIsDeleteModalOpen(false);
+        setIsCalendarModalOpen(false);
+        setCalendarEventDraft(null);
     };
 
     const loadSelectedMeeting = async (pageId) => {
@@ -124,6 +121,8 @@ export default function App() {
             setEditableTextDrafts(createEditableTextDrafts());
             setIsEditModalOpen(false);
             setIsDeleteModalOpen(false);
+            setIsCalendarModalOpen(false);
+            setCalendarEventDraft(null);
             return;
         }
 
@@ -139,14 +138,126 @@ export default function App() {
         setIsDetailsVisible(true);
     };
 
-    const previewCalendarEvent = () => {
-        const googleMeetLink = getGoogleMeetLink(editableMeetingData);
+    const openCalendarEventModal = () => {
+        setCalendarEventDraft(createCalendarEventDraft(displayedMeetingData));
+        setCalendarFieldErrors({});
+        setCalendarGuestErrors({});
+        setCalendarErrorMessage("");
+        setCalendarMessage("");
+        setIsCalendarModalOpen(true);
+    };
 
-        setCalendarMessage(
-            googleMeetLink
-                ? `Ready to create a calendar event for "${editableMeetingData.title}" using ${googleMeetLink.href}.`
-                : `Ready to create a calendar event for "${editableMeetingData.title}". No Google Meet link was extracted yet.`,
-        );
+    const updateCalendarDraft = (fieldName, value) => {
+        setCalendarEventDraft((currentDraft) => ({
+            ...currentDraft,
+            [fieldName]:
+                typeof value === "boolean" ? value : getEditableInputValue(value),
+        }));
+        setCalendarFieldErrors((currentErrors) => {
+            const { [fieldName]: removedError, ...nextErrors } = currentErrors;
+
+            return nextErrors;
+        });
+    };
+
+    const updateCalendarGuest = (guestIndex, fieldName, value) => {
+        const guestKey = calendarEventDraft?.guests?.[guestIndex]?.key ?? "";
+
+        setCalendarEventDraft((currentDraft) => {
+            const guests = [...(currentDraft.guests ?? [])];
+
+            guests[guestIndex] = {
+                ...guests[guestIndex],
+                [fieldName]: getEditableInputValue(value),
+            };
+
+            return {
+                ...currentDraft,
+                guests,
+            };
+        });
+
+        if (guestKey) {
+            setCalendarGuestErrors((currentErrors) => {
+                const { [guestKey]: removedError, ...nextErrors } = currentErrors;
+
+                return nextErrors;
+            });
+        }
+    };
+
+    const addCalendarGuest = () => {
+        setCalendarEventDraft((currentDraft) => ({
+            ...currentDraft,
+            guests: [
+                ...(currentDraft.guests ?? []),
+                {
+                    key: `guest-${Date.now()}`,
+                    name: "",
+                    email: "",
+                    isKnownParticipant: false,
+                },
+            ],
+        }));
+    };
+
+    const removeCalendarGuest = (guestIndex) => {
+        setCalendarEventDraft((currentDraft) => ({
+            ...currentDraft,
+            guests: (currentDraft.guests ?? []).filter(
+                (guest, index) => index !== guestIndex,
+            ),
+        }));
+    };
+
+    const createCalendarEvent = async () => {
+        const validation = validateCalendarEventDraft(calendarEventDraft);
+
+        setCalendarFieldErrors(validation.fieldErrors);
+        setCalendarGuestErrors(validation.guestErrors);
+        setCalendarErrorMessage("");
+
+        if (!validation.isValid) {
+            setCalendarErrorMessage("Review the highlighted calendar event fields.");
+            return;
+        }
+
+        setIsCreatingCalendarEvent(true);
+
+        try {
+            const result = await invoke("createGoogleCalendarEvent", {
+                meetingData: displayedMeetingData,
+                calendarDraft: calendarEventDraft,
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+            });
+
+            if (!result?.success) {
+                if (result?.validation) {
+                    setCalendarFieldErrors(result.validation.fieldErrors ?? {});
+                    setCalendarGuestErrors(result.validation.guestErrors ?? {});
+                }
+
+                setCalendarErrorMessage(
+                    result?.message ||
+                        "MeetingFlow could not create the Calendar event.",
+                );
+                return;
+            }
+
+            const savedMeetingData = result.meetingData ?? displayedMeetingData;
+
+            setSelectedMeetingData(savedMeetingData);
+            setEditableMeetingData(savedMeetingData);
+            setEditableTextDrafts(createEditableTextDrafts(savedMeetingData));
+            setCalendarMessage(result.message || "Calendar event created.");
+            setIsCalendarModalOpen(false);
+        } catch (error) {
+            setCalendarErrorMessage(
+                "MeetingFlow could not create the Calendar event. Google Calendar may not be connected or configured yet.",
+            );
+        } finally {
+            setIsCreatingCalendarEvent(false);
+        }
     };
 
     const updateMeetingField = (fieldName, value) => {
@@ -448,7 +559,7 @@ export default function App() {
                     calendarMessage={calendarMessage}
                     isDetailsVisible={isDetailsVisible}
                     meetingData={displayedMeetingData}
-                    onCreateCalendarEvent={previewCalendarEvent}
+                    onCreateCalendarEvent={openCalendarEventModal}
                     onDelete={() => setIsDeleteModalOpen(true)}
                     onEdit={() => setIsEditModalOpen(true)}
                     onEditInConfluence={openSelectedMeetingInConfluenceEditor}
@@ -486,6 +597,23 @@ export default function App() {
                     onArchive={() => removeSelectedMeeting("archive")}
                     onCancel={() => setIsDeleteModalOpen(false)}
                     onDelete={() => removeSelectedMeeting("delete")}
+                />
+            ) : null}
+
+            {hasSelectedMeeting && isCalendarModalOpen && calendarEventDraft ? (
+                <CreateCalendarEventModal
+                    calendarErrorMessage={calendarErrorMessage}
+                    draft={calendarEventDraft}
+                    fieldErrors={calendarFieldErrors}
+                    guestErrors={calendarGuestErrors}
+                    isCreating={isCreatingCalendarEvent}
+                    meetingData={displayedMeetingData}
+                    onAddGuest={addCalendarGuest}
+                    onCancel={() => setIsCalendarModalOpen(false)}
+                    onCreate={createCalendarEvent}
+                    onRemoveGuest={removeCalendarGuest}
+                    onUpdateDraft={updateCalendarDraft}
+                    onUpdateGuest={updateCalendarGuest}
                 />
             ) : null}
 

@@ -157,6 +157,10 @@ test("syncMeetingNotesFromConfluence resolves account ID participant names befor
         accountId === "712020:6c46aaa2-f232-401d-a887-aeb5da6ca229"
           ? "Sayed Touati"
           : "Iheb Touati",
+      email:
+        accountId === "712020:6c46aaa2-f232-401d-a887-aeb5da6ca229"
+          ? "sayed@example.com"
+          : "iheb@example.com",
     });
   };
 
@@ -175,10 +179,12 @@ test("syncMeetingNotesFromConfluence resolves account ID participant names befor
     {
       accountId: "712020:6c46aaa2-f232-401d-a887-aeb5da6ca229",
       displayName: "Sayed Touati",
+      email: "sayed@example.com",
     },
     {
       accountId: "712020:ee66f328-7efd-44eb-998e-de05a6ca745c",
       displayName: "Iheb Touati",
+      email: "iheb@example.com",
     },
   ]);
 });

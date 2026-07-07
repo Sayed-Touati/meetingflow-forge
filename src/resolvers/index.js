@@ -1,6 +1,15 @@
 import Resolver from "@forge/resolver";
 import api, { route } from "@forge/api";
 import { kvs } from "@forge/kvs";
+import {
+  addOrUpdateGoogleMeetResource,
+  buildCalendarDescription,
+  validateCalendarEventDraft,
+} from "../calendar-event-form.mjs";
+import {
+  buildGoogleCalendarEventBody,
+  extractGoogleCalendarEventLinks,
+} from "../google-calendar-event.mjs";
 import { syncMeetingNotesFromConfluence } from "../meeting-note-sync.mjs";
 import { updateConfluenceMeetingNotePage } from "../meeting-confluence-update.mjs";
 import {
@@ -15,6 +24,7 @@ import {
 } from "../meeting-storage.mjs";
 
 const resolver = new Resolver();
+const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
 resolver.define("listMeetingNotesForDate", async (req) => {
   const date = req.payload?.date;
@@ -90,6 +100,165 @@ function getMeetingDataPayload(req) {
 
   return meetingData;
 }
+
+function createCalendarRequestId(meetingData) {
+  return `meetingflow-${meetingData.pageId || "event"}-${Date.now()}`;
+}
+
+async function readRequiredJsonResponse(response, description) {
+  if (!response.ok) {
+    const message = `MeetingFlow failed to ${description}.`;
+    const responseText = await response.text();
+
+    console.log(message, {
+      status: response.status,
+      statusText: response.statusText,
+      responseText,
+    });
+
+    throw new Error(`${message} ${responseText}`);
+  }
+
+  return response.json();
+}
+
+async function saveMeetingDataToConfluenceAndKvs(meetingData) {
+  const savedMeetingData = meetingData.pageId
+    ? await updateConfluenceMeetingNotePage({
+        meetingData,
+        fetchPage: (pageId) =>
+          api
+            .asUser()
+            .requestConfluence(route`/wiki/api/v2/pages/${pageId}?body-format=storage`),
+        updatePage: (pageId, body) =>
+          api.asUser().requestConfluence(route`/wiki/api/v2/pages/${pageId}`, {
+            method: "PUT",
+            headers: {
+              "Accept": "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+          }),
+      })
+    : meetingData;
+
+  await saveMeetingNoteRecord(kvs, savedMeetingData);
+
+  return savedMeetingData;
+}
+
+resolver.define("createGoogleCalendarEvent", async (req) => {
+  const meetingData = req.payload?.meetingData;
+  const calendarDraft = req.payload?.calendarDraft;
+  const timeZone = req.payload?.timeZone || "UTC";
+
+  if (!meetingData) {
+    return {
+      success: false,
+      message: "No meeting data provided.",
+    };
+  }
+
+  const validation = validateCalendarEventDraft(calendarDraft);
+
+  if (!validation.isValid) {
+    return {
+      success: false,
+      type: "validation",
+      validation,
+      message: "Review the highlighted calendar event fields.",
+    };
+  }
+
+  const googleCalendar = api.asUser().withProvider("google", "google-apis");
+
+  if (!(await googleCalendar.hasCredentials([GOOGLE_CALENDAR_SCOPE]))) {
+    await googleCalendar.requestCredentials([GOOGLE_CALENDAR_SCOPE]);
+
+    return {
+      success: false,
+      type: "auth",
+      message: "Connect Google Calendar before creating the event.",
+    };
+  }
+
+  const eventBody = buildGoogleCalendarEventBody({
+    draft: calendarDraft,
+    description: buildCalendarDescription(meetingData),
+    requestId: createCalendarRequestId(meetingData),
+    timeZone,
+  });
+  const calendarResponse = await googleCalendar.fetch(
+    "/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(eventBody),
+    },
+  );
+  let calendarEvent;
+
+  try {
+    calendarEvent = await readRequiredJsonResponse(
+      calendarResponse,
+      "create Google Calendar event",
+    );
+  } catch (error) {
+    return {
+      success: false,
+      type: "calendar-api",
+      message:
+        "Google Calendar rejected the event request. Check Forge logs for the Google error details.",
+    };
+  }
+  const calendarLinks = extractGoogleCalendarEventLinks(calendarEvent);
+
+  if (!calendarDraft.includeGoogleMeet || !calendarLinks.meetUrl) {
+    return {
+      success: true,
+      calendarEvent: calendarLinks,
+      meetingData,
+      message: "Calendar event created.",
+    };
+  }
+
+  const meetingDataWithMeetLink = addOrUpdateGoogleMeetResource(
+    meetingData,
+    calendarLinks.meetUrl,
+  );
+
+  try {
+    const savedMeetingData = await saveMeetingDataToConfluenceAndKvs(
+      meetingDataWithMeetLink,
+    );
+
+    return {
+      success: true,
+      calendarEvent: calendarLinks,
+      meetingData: savedMeetingData,
+      message: "Calendar event created and meeting note updated.",
+    };
+  } catch (error) {
+    console.log(
+      "MeetingFlow created the Calendar event but could not update Confluence.",
+      {
+        pageId: meetingData.pageId,
+        eventId: calendarLinks.eventId,
+      },
+    );
+
+    return {
+      success: true,
+      partialSuccess: true,
+      calendarEvent: calendarLinks,
+      meetingData: meetingDataWithMeetLink,
+      message:
+        "Calendar event created, but MeetingFlow could not update the Confluence meeting note.",
+    };
+  }
+});
 
 resolver.define("archiveMeetingNote", async (req) => {
   const meetingData = getMeetingDataPayload(req);

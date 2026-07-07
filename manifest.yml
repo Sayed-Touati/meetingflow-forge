@@ -25,12 +25,66 @@ modules:
       handler: index.handlePageEvent
     - key: resolver
       handler: resolvers/index.handler
+      providers:
+        auth:
+          - google
 
 resources:
   - key: main
     path: src/frontend/index.jsx
 
+remotes:
+  - key: google-apis
+    baseUrl: https://www.googleapis.com
+  - key: google-account
+    baseUrl: https://accounts.google.com
+  - key: google-oauth
+    baseUrl: https://oauth2.googleapis.com
+
+providers:
+  auth:
+    - key: google
+      name: Google
+      type: oauth2
+      clientId: 1095965995923-3m79q6thrqtu0kp6h9bnf12ppcfvpe82.apps.googleusercontent.com
+      remotes:
+        - google-apis
+      bearerMethod: authorization-header
+      scopes:
+        - profile
+        - https://www.googleapis.com/auth/userinfo.email
+        - https://www.googleapis.com/auth/calendar.events
+      actions:
+        authorization:
+          remote: google-account
+          path: /o/oauth2/v2/auth
+          queryParameters:
+            access_type: offline
+            prompt: consent
+        exchange:
+          remote: google-oauth
+          path: /token
+        refreshToken:
+          remote: google-oauth
+          path: /token
+        revokeToken:
+          remote: google-oauth
+          path: /revoke
+        retrieveProfile:
+          remote: google-apis
+          path: /userinfo/v2/me
+          resolvers:
+            id: id
+            displayName: email
+            avatarUrl: picture
+
 permissions:
+  external:
+    fetch:
+      backend:
+        - https://www.googleapis.com
+        - https://accounts.google.com
+        - https://oauth2.googleapis.com
   scopes:
     - read:confluence-content.summary
     - read:confluence-user
