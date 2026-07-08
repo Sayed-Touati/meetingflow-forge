@@ -1,5 +1,9 @@
 import api, { route } from "@forge/api";
 import { kvs } from "@forge/kvs";
+import {
+  createGoogleCalendarAutomationStatus,
+  getAutomationSettings,
+} from "./automation-settings.mjs";
 import { parseMeetingNotePage } from "./meeting-parser.mjs";
 import { resolveParticipantDisplayNames } from "./participant-resolver.mjs";
 import { saveMeetingNoteRecord } from "./meeting-storage.mjs";
@@ -62,16 +66,28 @@ export async function handlePageEvent(event, context) {
           .requestConfluence(route`/wiki/rest/api/user?accountId=${accountId}`),
     },
   );
+  const automationSettings = await getAutomationSettings(kvs);
+  const googleCalendarAutomationStatus = createGoogleCalendarAutomationStatus(
+    extractedMeetingData,
+    automationSettings,
+  );
+  const meetingDataWithAutomation = {
+    ...extractedMeetingData,
+    automation: {
+      googleCalendar: googleCalendarAutomationStatus,
+    },
+  };
 
-  console.log("Extracted meeting data:", extractedMeetingData);
-  console.log("Meeting note section headings:", Object.keys(extractedMeetingData.sections));
-  console.log("Extracted meeting date:", extractedMeetingData.date);
+  console.log("Extracted meeting data:", meetingDataWithAutomation);
+  console.log("Meeting note section headings:", Object.keys(meetingDataWithAutomation.sections));
+  console.log("Extracted meeting date:", meetingDataWithAutomation.date);
+  console.log("Google Calendar automation status:", googleCalendarAutomationStatus);
 
-  await saveMeetingNoteRecord(kvs, extractedMeetingData);
+  await saveMeetingNoteRecord(kvs, meetingDataWithAutomation);
 
   console.log("Saved meeting data to Forge storage.");
 
-  console.log("Meeting note sections preview:", extractedMeetingData.sections);
+  console.log("Meeting note sections preview:", meetingDataWithAutomation.sections);
 
   console.log("Page update summary:", {
     eventType: event.eventType,

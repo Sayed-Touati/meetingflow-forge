@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { syncMeetingNotesFromConfluence } from "../src/meeting-note-sync.mjs";
+import {
+  refreshMeetingNoteFromConfluence,
+  syncMeetingNotesFromConfluence,
+} from "../src/meeting-note-sync.mjs";
 import { MEETING_NOTES_TEMPLATE_ID } from "../src/meeting-notes-template.mjs";
 
 function createResponse(body) {
@@ -308,5 +311,118 @@ test("syncMeetingNotesFromConfluence resolves multiple presenters in one topic r
   assert.deepEqual(kvs.values.get("meeting-note:meeting-page").discussionTopics[0].presenter, [
     { accountId: "account-a", displayName: "Sayed Touati" },
     { accountId: "account-b", displayName: "Iheb Touati" },
+  ]);
+});
+
+test("syncMeetingNotesFromConfluence applies meeting note metadata before saving", async () => {
+  const kvs = createMemoryKvs();
+  const searchPages = async () =>
+    createResponse({
+      results: [{ content: { id: "meeting-page" } }],
+    });
+  const fetchPage = async () =>
+    createResponse({
+      id: "meeting-page",
+      title: "Automation metadata",
+      sourceTemplateEntityId: MEETING_NOTES_TEMPLATE_ID,
+      body: {
+        storage: {
+          value: `
+            <h2>Date</h2>
+            <p><time datetime="2026-07-05" /></p>
+            <h2>Time</h2>
+            <p>10:00 - 11:00</p>
+          `,
+        },
+      },
+    });
+
+  await syncMeetingNotesFromConfluence({
+    fetchPage,
+    fetchUser: async () => createResponse({}),
+    kvsClient: kvs,
+    prepareMeetingNote: (meetingNote) => ({
+      ...meetingNote,
+      automation: {
+        googleCalendar: {
+          status: "ready",
+        },
+      },
+    }),
+    searchPages,
+  });
+
+  assert.deepEqual(kvs.values.get("meeting-note:meeting-page").automation, {
+    googleCalendar: {
+      status: "ready",
+    },
+  });
+});
+
+test("refreshMeetingNoteFromConfluence refreshes only the selected meeting page", async () => {
+  const kvs = createMemoryKvs();
+  const fetchedPageIds = [];
+  const fetchedAccountIds = [];
+
+  const refreshedMeetingNote = await refreshMeetingNoteFromConfluence({
+    pageId: "meeting-page",
+    fetchPage: async (pageId) => {
+      fetchedPageIds.push(pageId);
+
+      return createResponse({
+        id: pageId,
+        title: "Refreshed planning sync",
+        sourceTemplateEntityId: MEETING_NOTES_TEMPLATE_ID,
+        _links: {
+          base: "https://example.atlassian.net/wiki",
+          webui: "/spaces/TEAM/pages/meeting-page/Refreshed+planning+sync",
+        },
+        body: {
+          storage: {
+            value: `
+              <h2>Date</h2>
+              <p><time datetime="2026-07-08" /></p>
+              <h2>Participants</h2>
+              <p><ac:link><ri:user ri:account-id="account-a" /></ac:link></p>
+              <h2>Goals</h2>
+              <ul><li>Refresh the selected meeting only</li></ul>
+            `,
+          },
+        },
+      });
+    },
+    fetchUser: async (accountId) => {
+      fetchedAccountIds.push(accountId);
+
+      return createResponse({
+        accountId,
+        displayName: "Sayed Touati",
+      });
+    },
+    kvsClient: kvs,
+    prepareMeetingNote: (meetingNote) => ({
+      ...meetingNote,
+      automation: {
+        googleCalendar: {
+          status: "ready",
+        },
+      },
+    }),
+  });
+
+  assert.deepEqual(fetchedPageIds, ["meeting-page"]);
+  assert.deepEqual(fetchedAccountIds, ["account-a"]);
+  assert.equal(refreshedMeetingNote.title, "Refreshed planning sync");
+  assert.deepEqual(refreshedMeetingNote.goals, [
+    "Refresh the selected meeting only",
+  ]);
+  assert.deepEqual(kvs.values.get("meeting-note:meeting-page"), refreshedMeetingNote);
+  assert.deepEqual(kvs.values.get("meeting-note-index:2026-07-08"), [
+    {
+      pageId: "meeting-page",
+      title: "Refreshed planning sync",
+      date: "2026-07-08",
+      pageUrl: "https://example.atlassian.net/wiki/spaces/TEAM/pages/meeting-page/Refreshed+planning+sync",
+    },
   ]);
 });

@@ -335,9 +335,10 @@ function ResourcesList({ resources }) {
 
 export default function MeetingInfoCard({
     isDetailsVisible,
+    isRefreshing,
     meetingData,
-    onEdit,
     onEditInConfluence,
+    onRefresh,
     onToggleDetails,
 }) {
     const detailsToggleLabel = isDetailsVisible ? "Hide details" : "Show details";
@@ -364,12 +365,13 @@ export default function MeetingInfoCard({
                         </Button>
 
                         <Button
-                            appearance="primary"
-                            icon="edit-filled"
+                            appearance="subtle"
+                            disabled={isRefreshing}
+                            icon="refresh"
                             iconPosition="before"
-                            onClick={onEdit}
+                            onClick={onRefresh}
                         >
-                            Edit
+                            {isRefreshing ? "Refreshing..." : "Refresh"}
                         </Button>
 
                         <Button

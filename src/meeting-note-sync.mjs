@@ -28,11 +28,57 @@ function dateMatches(meetingNote, date) {
   return !date || meetingNote.date === date;
 }
 
+async function parseAndSaveMeetingPage({
+  fetchUser,
+  kvsClient,
+  meetingNote,
+  page,
+  prepareMeetingNote = (meetingNote) => meetingNote,
+}) {
+  const parsedMeetingNote = meetingNote ?? parseMeetingNotePage(page);
+  const meetingNoteWithParticipantNames = await resolveParticipantDisplayNames(
+    parsedMeetingNote,
+    { fetchUser },
+  );
+  const preparedMeetingNote = await prepareMeetingNote(meetingNoteWithParticipantNames);
+
+  await saveMeetingNoteRecord(kvsClient, preparedMeetingNote);
+
+  return preparedMeetingNote;
+}
+
+export async function refreshMeetingNoteFromConfluence({
+  fetchPage,
+  fetchUser,
+  kvsClient,
+  pageId,
+  prepareMeetingNote = (meetingNote) => meetingNote,
+}) {
+  if (!pageId) {
+    return null;
+  }
+
+  const pageResponse = await fetchPage(pageId);
+  const page = await readJsonResponse(pageResponse, `fetch Confluence page ${pageId}`);
+
+  if (!isMeetingNotesPage(page)) {
+    return null;
+  }
+
+  return parseAndSaveMeetingPage({
+    fetchUser,
+    kvsClient,
+    page,
+    prepareMeetingNote,
+  });
+}
+
 export async function syncMeetingNotesFromConfluence({
   date,
   fetchPage,
   fetchUser,
   kvsClient,
+  prepareMeetingNote = (meetingNote) => meetingNote,
   searchPages,
 }) {
   const searchResponse = await searchPages({
@@ -67,12 +113,13 @@ export async function syncMeetingNotesFromConfluence({
       continue;
     }
 
-    const meetingNoteWithParticipantNames = await resolveParticipantDisplayNames(
+    await parseAndSaveMeetingPage({
+      fetchUser,
+      kvsClient,
       meetingNote,
-      { fetchUser },
-    );
-
-    await saveMeetingNoteRecord(kvsClient, meetingNoteWithParticipantNames);
+      page,
+      prepareMeetingNote,
+    });
     indexedCount += 1;
   }
 

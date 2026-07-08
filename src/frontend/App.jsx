@@ -19,17 +19,9 @@ import AutomationSettingsDrawer from "./components/AutomationSettingsDrawer";
 import AppHeader from "./components/AppHeader";
 import CreateCalendarEventModal from "./components/CreateCalendarEventModal";
 import DeleteMeetingModal from "./components/DeleteMeetingModal";
-import EditMeetingModal from "./components/EditMeetingModal";
 import MeetingDetailsSection from "./components/MeetingDetailsSection";
 import MeetingSelector from "./components/MeetingSelector";
-import {
-    createEditableTextDrafts,
-    getEditableInputValue,
-    parseListText,
-    parseParticipantsText,
-    parseRelatedInfoText,
-    relatedLinksFromResources,
-} from "./meeting-editing.mjs";
+import { getEditableInputValue } from "./meeting-editing.mjs";
 
 function getConfluenceEditUrl({ pageId, pageUrl }) {
     if (!pageUrl) {
@@ -55,27 +47,49 @@ function getConfluenceEditUrl({ pageId, pageUrl }) {
     }
 }
 
+function getGoogleCalendarAutomationAppearance(status) {
+    if (status === "ready") {
+        return "success";
+    }
+
+    if (status === "needs-review") {
+        return "warning";
+    }
+
+    return "info";
+}
+
+function getGoogleCalendarAutomationTitle(status) {
+    if (status === "ready") {
+        return "Google Calendar automation ready";
+    }
+
+    if (status === "needs-review") {
+        return "Google Calendar automation needs review";
+    }
+
+    return "Google Calendar automation";
+}
+
 export default function App() {
     const [selectedDate, setSelectedDate] = useState("");
     const [meetingSummaries, setMeetingSummaries] = useState([]);
     const [selectedMeetingData, setSelectedMeetingData] = useState(null);
     const [editableMeetingData, setEditableMeetingData] = useState(null);
-    const [editableTextDrafts, setEditableTextDrafts] = useState(
-        createEditableTextDrafts(),
-    );
     const [isLoadingMeetings, setIsLoadingMeetings] = useState(true);
     const [isLoadingMeeting, setIsLoadingMeeting] = useState(false);
     const [calendarMessage, setCalendarMessage] = useState("");
+    const [calendarMessageAppearance, setCalendarMessageAppearance] =
+        useState("info");
     const [isAppInfoVisible, setIsAppInfoVisible] = useState(false);
     const [isDetailsVisible, setIsDetailsVisible] = useState(true);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
     const [calendarEventDraft, setCalendarEventDraft] = useState(null);
     const [calendarFieldErrors, setCalendarFieldErrors] = useState({});
     const [calendarGuestErrors, setCalendarGuestErrors] = useState({});
     const [calendarErrorMessage, setCalendarErrorMessage] = useState("");
-    const [isSavingMeeting, setIsSavingMeeting] = useState(false);
+    const [isRefreshingMeeting, setIsRefreshingMeeting] = useState(false);
     const [isRemovingMeeting, setIsRemovingMeeting] = useState(false);
     const [isCreatingCalendarEvent, setIsCreatingCalendarEvent] = useState(false);
     const [automationSettings, setAutomationSettings] = useState(
@@ -96,19 +110,40 @@ export default function App() {
         [meetingSummaries],
     );
 
+    const showCalendarMessage = (message, appearance = "info") => {
+        setCalendarMessage(message);
+        setCalendarMessageAppearance(appearance);
+    };
+
+    const clearCalendarMessage = () => {
+        showCalendarMessage("");
+    };
+
+    const loadAutomationSettings = async () => {
+        try {
+            const savedSettings = await invoke("getAutomationSettings");
+
+            setAutomationSettings(createAutomationSettingsDraft(savedSettings));
+            setAutomationSettingsDraft(createAutomationSettingsDraft(savedSettings));
+        } catch (error) {
+            showCalendarMessage(
+                "MeetingFlow could not load automation settings. Defaults are shown.",
+                "warning",
+            );
+        }
+    };
+
     const loadMeetingSummaries = async (date) => {
         setIsLoadingMeetings(true);
-        setCalendarMessage("");
+        clearCalendarMessage();
 
         const summaries = await invoke("listMeetingNotesForDate", { date });
 
         setMeetingSummaries(summaries ?? []);
         setSelectedMeetingData(null);
         setEditableMeetingData(null);
-        setEditableTextDrafts(createEditableTextDrafts());
         setIsLoadingMeetings(false);
         setIsDetailsVisible(true);
-        setIsEditModalOpen(false);
         setIsDeleteModalOpen(false);
         setIsCalendarModalOpen(false);
         setCalendarEventDraft(null);
@@ -118,8 +153,6 @@ export default function App() {
         if (!pageId) {
             setSelectedMeetingData(null);
             setEditableMeetingData(null);
-            setEditableTextDrafts(createEditableTextDrafts());
-            setIsEditModalOpen(false);
             setIsDeleteModalOpen(false);
             setIsCalendarModalOpen(false);
             setCalendarEventDraft(null);
@@ -127,13 +160,12 @@ export default function App() {
         }
 
         setIsLoadingMeeting(true);
-        setCalendarMessage("");
+        clearCalendarMessage();
 
         const meetingData = await invoke("getMeetingNote", { pageId });
 
         setSelectedMeetingData(meetingData);
         setEditableMeetingData(meetingData);
-        setEditableTextDrafts(createEditableTextDrafts(meetingData));
         setIsLoadingMeeting(false);
         setIsDetailsVisible(true);
     };
@@ -143,7 +175,7 @@ export default function App() {
         setCalendarFieldErrors({});
         setCalendarGuestErrors({});
         setCalendarErrorMessage("");
-        setCalendarMessage("");
+        clearCalendarMessage();
         setIsCalendarModalOpen(true);
     };
 
@@ -248,8 +280,10 @@ export default function App() {
 
             setSelectedMeetingData(savedMeetingData);
             setEditableMeetingData(savedMeetingData);
-            setEditableTextDrafts(createEditableTextDrafts(savedMeetingData));
-            setCalendarMessage(result.message || "Calendar event created.");
+            showCalendarMessage(
+                result.message || "Calendar event created.",
+                result.partialSuccess ? "warning" : "success",
+            );
             setIsCalendarModalOpen(false);
         } catch (error) {
             setCalendarErrorMessage(
@@ -258,124 +292,6 @@ export default function App() {
         } finally {
             setIsCreatingCalendarEvent(false);
         }
-    };
-
-    const updateMeetingField = (fieldName, value) => {
-        setEditableMeetingData((currentMeetingData) => ({
-            ...currentMeetingData,
-            [fieldName]: getEditableInputValue(value),
-        }));
-    };
-
-    const updateGoals = (value) => {
-        const textValue = getEditableInputValue(value);
-
-        setEditableTextDrafts((currentDrafts) => ({
-            ...currentDrafts,
-            goals: textValue,
-        }));
-        setEditableMeetingData((currentMeetingData) => ({
-            ...currentMeetingData,
-            goals: parseListText(textValue),
-        }));
-    };
-
-    const updateBrainstorm = (value) => {
-        const textValue = getEditableInputValue(value);
-
-        setEditableTextDrafts((currentDrafts) => ({
-            ...currentDrafts,
-            brainstorm: textValue,
-        }));
-        setEditableMeetingData((currentMeetingData) => ({
-            ...currentMeetingData,
-            brainstorm: parseListText(textValue),
-        }));
-    };
-
-    const updateParticipants = (value) => {
-        const textValue = getEditableInputValue(value);
-
-        setEditableTextDrafts((currentDrafts) => ({
-            ...currentDrafts,
-            participants: textValue,
-        }));
-        setEditableMeetingData((currentMeetingData) => ({
-            ...currentMeetingData,
-            participants: parseParticipantsText(textValue),
-        }));
-    };
-
-    const updateRelatedInfo = (value) => {
-        const textValue = getEditableInputValue(value);
-
-        setEditableTextDrafts((currentDrafts) => ({
-            ...currentDrafts,
-            relatedInfo: textValue,
-        }));
-        setEditableMeetingData((currentMeetingData) => {
-            const resources = parseRelatedInfoText(textValue);
-
-            return {
-                ...currentMeetingData,
-                resources,
-                relatedLinks: relatedLinksFromResources(resources),
-            };
-        });
-    };
-
-    const updateDiscussionTopicField = (topicIndex, fieldName, value) => {
-        const fieldValue = getEditableInputValue(value);
-
-        if (fieldName === "presenter" || fieldName === "notes") {
-            setEditableTextDrafts((currentDrafts) => {
-                const discussionTopics = [
-                    ...(currentDrafts.discussionTopics ?? []),
-                ];
-
-                discussionTopics[topicIndex] = {
-                    ...(discussionTopics[topicIndex] ?? {}),
-                    [fieldName]: fieldValue,
-                };
-
-                return {
-                    ...currentDrafts,
-                    discussionTopics,
-                };
-            });
-        }
-
-        setEditableMeetingData((currentMeetingData) => {
-            const discussionTopics = [...(currentMeetingData.discussionTopics ?? [])];
-            const currentTopic = discussionTopics[topicIndex] ?? {};
-            let nextValue = fieldValue;
-
-            if (fieldName === "presenter") {
-                const presenters = fieldValue
-                    .split(",")
-                    .map((presenter) => presenter.trim())
-                    .filter(Boolean)
-                    .map((displayName) => ({ displayName }));
-
-                nextValue = presenters.length > 1 ? presenters : presenters[0] ?? null;
-            }
-
-            if (fieldName === "notes") {
-                const noteLines = parseListText(fieldValue);
-
-                nextValue = noteLines.length > 1 ? noteLines : noteLines[0] ?? "";
-            }
-
-            discussionTopics[topicIndex] = {
-                ...currentTopic,
-                [fieldName]: nextValue,
-            };
-
-            return {
-                ...currentMeetingData,
-                discussionTopics,
-            };
-        });
     };
 
     const handleDateChange = (date) => {
@@ -390,37 +306,59 @@ export default function App() {
         loadMeetingSummaries("");
     };
 
-    const handleSaveModalChanges = async () => {
-        setIsSavingMeeting(true);
-
-        try {
-            const result = await invoke("saveLatestMeetingData", {
-                meetingData: editableMeetingData,
-            });
-            const savedMeetingData = result?.meetingData ?? editableMeetingData;
-
-            setSelectedMeetingData(savedMeetingData);
-            setEditableMeetingData(savedMeetingData);
-            setEditableTextDrafts(createEditableTextDrafts(savedMeetingData));
-            setCalendarMessage("Meeting details saved to Confluence and MeetingFlow.");
-            setIsEditModalOpen(false);
-        } catch (error) {
-            setCalendarMessage(
-                "MeetingFlow could not save these changes to Confluence. Please try again.",
-            );
-        } finally {
-            setIsSavingMeeting(false);
-        }
-    };
-
     const clearRemovedMeeting = (removedPageId) => {
         setMeetingSummaries((currentSummaries) =>
             currentSummaries.filter((meeting) => meeting.pageId !== removedPageId),
         );
         setSelectedMeetingData(null);
         setEditableMeetingData(null);
-        setEditableTextDrafts(createEditableTextDrafts());
         setIsDetailsVisible(true);
+    };
+
+    const refreshSelectedMeetingDetails = async () => {
+        if (!displayedMeetingData?.pageId) {
+            return;
+        }
+
+        setIsRefreshingMeeting(true);
+        clearCalendarMessage();
+
+        try {
+            const refreshedMeetingData = await invoke("refreshMeetingNote", {
+                pageId: displayedMeetingData.pageId,
+            });
+
+            if (!refreshedMeetingData) {
+                showCalendarMessage(
+                    "MeetingFlow could not refresh this Confluence meeting note.",
+                    "warning",
+                );
+                return;
+            }
+
+            setSelectedMeetingData(refreshedMeetingData);
+            setEditableMeetingData(refreshedMeetingData);
+            setMeetingSummaries((currentSummaries) =>
+                currentSummaries.map((meeting) =>
+                    meeting.pageId === refreshedMeetingData.pageId
+                        ? {
+                              ...meeting,
+                              title: refreshedMeetingData.title,
+                              date: refreshedMeetingData.date,
+                              pageUrl: refreshedMeetingData.pageUrl,
+                          }
+                        : meeting,
+                ),
+            );
+            showCalendarMessage("Meeting details refreshed from Confluence.", "success");
+        } catch (error) {
+            showCalendarMessage(
+                "MeetingFlow could not refresh this meeting note. Please try again.",
+                "error",
+            );
+        } finally {
+            setIsRefreshingMeeting(false);
+        }
     };
 
     const removeSelectedMeeting = async (operation) => {
@@ -439,13 +377,14 @@ export default function App() {
             });
 
             clearRemovedMeeting(result?.pageId ?? displayedMeetingData.pageId);
-            setCalendarMessage(successMessage);
+            showCalendarMessage(successMessage, "success");
             setIsDeleteModalOpen(false);
         } catch (error) {
-            setCalendarMessage(
+            showCalendarMessage(
                 operation === "archive"
                     ? "MeetingFlow could not archive this Confluence page. Please try again."
                     : "MeetingFlow could not delete this Confluence page. Please try again.",
+                "error",
             );
         } finally {
             setIsRemovingMeeting(false);
@@ -471,7 +410,7 @@ export default function App() {
 
     const toggleMeetingDetails = () => {
         if (isDetailsVisible) {
-            setCalendarMessage("");
+            clearCalendarMessage();
         }
 
         setIsDetailsVisible((currentValue) => !currentValue);
@@ -496,20 +435,35 @@ export default function App() {
         setIsAutomationSettingsOpen(false);
     };
 
-    const saveAutomationSettings = () => {
+    const saveAutomationSettings = async () => {
         const nextSettings = createAutomationSettingsDraft(automationSettingsDraft);
 
-        setAutomationSettings(nextSettings);
-        setAutomationSettingsDraft(nextSettings);
-        setIsAutomationSettingsOpen(false);
+        try {
+            const savedSettings = await invoke("saveAutomationSettings", {
+                settings: nextSettings,
+            });
+
+            setAutomationSettings(createAutomationSettingsDraft(savedSettings));
+            setAutomationSettingsDraft(createAutomationSettingsDraft(savedSettings));
+            showCalendarMessage("Automation settings saved.", "success");
+            setIsAutomationSettingsOpen(false);
+        } catch (error) {
+            showCalendarMessage(
+                "MeetingFlow could not save automation settings. Please try again.",
+                "error",
+            );
+        }
     };
 
     useEffect(() => {
         loadMeetingSummaries(selectedDate);
+        loadAutomationSettings();
     }, []);
 
     const displayedMeetingData = editableMeetingData ?? selectedMeetingData;
     const hasSelectedMeeting = Boolean(displayedMeetingData);
+    const googleCalendarAutomationStatus =
+        displayedMeetingData?.automation?.googleCalendar;
 
     return (
         <Stack space="space.300">
@@ -557,37 +511,53 @@ export default function App() {
             {hasSelectedMeeting ? (
                 <MeetingDetailsSection
                     calendarMessage={calendarMessage}
+                    calendarMessageAppearance={calendarMessageAppearance}
                     isDetailsVisible={isDetailsVisible}
+                    isRefreshing={isRefreshingMeeting}
                     meetingData={displayedMeetingData}
                     onCreateCalendarEvent={openCalendarEventModal}
                     onDelete={() => setIsDeleteModalOpen(true)}
-                    onEdit={() => setIsEditModalOpen(true)}
                     onEditInConfluence={openSelectedMeetingInConfluenceEditor}
                     onOpenConfluence={openSelectedMeetingInConfluence}
+                    onRefresh={refreshSelectedMeetingDetails}
                     onToggleDetails={toggleMeetingDetails}
                 />
             ) : null}
 
-            {!hasSelectedMeeting && calendarMessage ? (
-                <SectionMessage appearance="info">
-                    <Text>{calendarMessage}</Text>
+            {googleCalendarAutomationStatus ? (
+                <SectionMessage
+                    appearance={getGoogleCalendarAutomationAppearance(
+                        googleCalendarAutomationStatus.status,
+                    )}
+                    title={getGoogleCalendarAutomationTitle(
+                        googleCalendarAutomationStatus.status,
+                    )}
+                >
+                    <Stack space="space.100">
+                        <Text>{googleCalendarAutomationStatus.message}</Text>
+                        {googleCalendarAutomationStatus.missingFields?.length ? (
+                            <Text>
+                                Missing fields:{" "}
+                                {googleCalendarAutomationStatus.missingFields.join(", ")}
+                            </Text>
+                        ) : null}
+                        {googleCalendarAutomationStatus.missingParticipantEmails
+                            ?.length ? (
+                            <Text>
+                                Missing participant emails:{" "}
+                                {googleCalendarAutomationStatus.missingParticipantEmails.join(
+                                    ", ",
+                                )}
+                            </Text>
+                        ) : null}
+                    </Stack>
                 </SectionMessage>
             ) : null}
 
-            {hasSelectedMeeting && isEditModalOpen ? (
-                <EditMeetingModal
-                    isSaving={isSavingMeeting}
-                    editableTextDrafts={editableTextDrafts}
-                    meetingData={displayedMeetingData}
-                    onCancel={() => setIsEditModalOpen(false)}
-                    onSave={handleSaveModalChanges}
-                    onUpdateBrainstorm={updateBrainstorm}
-                    onUpdateDiscussionTopicField={updateDiscussionTopicField}
-                    onUpdateField={updateMeetingField}
-                    onUpdateGoals={updateGoals}
-                    onUpdateParticipants={updateParticipants}
-                    onUpdateRelatedInfo={updateRelatedInfo}
-                />
+            {!hasSelectedMeeting && calendarMessage ? (
+                <SectionMessage appearance={calendarMessageAppearance}>
+                    <Text>{calendarMessage}</Text>
+                </SectionMessage>
             ) : null}
 
             {hasSelectedMeeting && isDeleteModalOpen ? (

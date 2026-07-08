@@ -1,3 +1,4 @@
+import { DomUtils, parseDocument } from "htmlparser2";
 import { encodeXML } from "entities";
 
 function escapeText(value) {
@@ -84,24 +85,184 @@ function relatedInfoSection(resources) {
   `;
 }
 
-export function createMeetingNoteStorageValue(meetingData) {
+const EDITABLE_SECTION_BUILDERS = [
+  ["Date", (meetingData) => dateSection(meetingData.date)],
+  ["Time", (meetingData) => timeSection(meetingData)],
+  ["Participants", (meetingData) =>
+    peopleSection("Participants", meetingData.participants)],
+  ["Goals", (meetingData) => listSection("Goals", meetingData.goals)],
+  ["Brainstorm", (meetingData) => listSection("Brainstorm", meetingData.brainstorm)],
+  ["Discussion topics", (meetingData) =>
+    discussionTopicsSection(meetingData.discussionTopics)],
+  ["Related info", (meetingData) => relatedInfoSection(meetingData.resources)],
+];
+
+function dateSection(date) {
+  return `
+    <h2>Date</h2>
+    <p>${date ? `<time datetime="${escapeText(date)}"></time>` : ""}</p>
+  `;
+}
+
+function timeSection(meetingData) {
   const timeText = [meetingData.startTime, meetingData.endTime]
     .filter(Boolean)
     .join(" - ");
 
   return `
-    <h2>Date</h2>
-    <p>${meetingData.date ? `<time datetime="${escapeText(meetingData.date)}" />` : ""}</p>
-
     <h2>Time</h2>
     <p>${escapeText(timeText)}</p>
+  `;
+}
 
+function parseStorageFragment(value) {
+  return parseDocument(value, {
+    decodeEntities: false,
+    lowerCaseAttributeNames: false,
+    lowerCaseTags: false,
+    recognizeSelfClosing: true,
+    xmlMode: true,
+  });
+}
+
+function serializeStorageNodes(nodes) {
+  return nodes.map((node) => DomUtils.getOuterHTML(node, { xmlMode: true })).join("");
+}
+
+function createStorageNodes(value) {
+  return parseStorageFragment(value).children;
+}
+
+function getNodeText(node) {
+  return DomUtils.textContent(node).replace(/\s+/g, " ").trim();
+}
+
+function normalizeHeadingText(value) {
+  return value
+    .replace(/&(?:amp;)?nbsp;/gi, " ")
+    .replace(/\u00a0/g, " ")
+    .replace(/^(:[a-z0-9_+-]+:\s*)+/i, "")
+    .replace(/^[^\p{L}\p{N}]+/u, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function isHeadingNode(node) {
+  return node?.type === "tag" && /^h[1-6]$/i.test(node.name);
+}
+
+function getHeadingLevel(node) {
+  return isHeadingNode(node) ? Number(node.name.slice(1)) : null;
+}
+
+function isEditableHeading(node, title) {
+  return (
+    isHeadingNode(node) &&
+    normalizeHeadingText(getNodeText(node)) === normalizeHeadingText(title)
+  );
+}
+
+function findEditableSectionIndex(nodes, title) {
+  return nodes.findIndex((node) => isEditableHeading(node, title));
+}
+
+function findEditableSection(nodes, title) {
+  const index = findEditableSectionIndex(nodes, title);
+
+  if (index !== -1) {
+    return { index, nodes };
+  }
+
+  for (const node of nodes) {
+    if (!node.children?.length) {
+      continue;
+    }
+
+    const section = findEditableSection(node.children, title);
+
+    if (section) {
+      return section;
+    }
+  }
+
+  return null;
+}
+
+function findEditableContainer(nodes) {
+  for (const [title] of EDITABLE_SECTION_BUILDERS) {
+    const section = findEditableSection(nodes, title);
+
+    if (section) {
+      return section.nodes;
+    }
+  }
+
+  return nodes;
+}
+
+function findSectionEndIndex(nodes, startIndex) {
+  const startLevel = getHeadingLevel(nodes[startIndex]);
+
+  for (let index = startIndex + 1; index < nodes.length; index += 1) {
+    const headingLevel = getHeadingLevel(nodes[index]);
+
+    if (headingLevel && headingLevel <= startLevel) {
+      return index;
+    }
+  }
+
+  return nodes.length;
+}
+
+function replaceSection(rootNodes, appendNodes, title, sectionHtml) {
+  const replacementNodes = createStorageNodes(sectionHtml);
+  const section = findEditableSection(rootNodes, title);
+
+  if (!section) {
+    appendNodes.push(...replacementNodes);
+    return;
+  }
+
+  const replacementHeadingIndex = findEditableSectionIndex(replacementNodes, title);
+  const replacementContentNodes =
+    replacementHeadingIndex === -1
+      ? replacementNodes
+      : replacementNodes.slice(replacementHeadingIndex + 1);
+
+  section.nodes.splice(
+    section.index + 1,
+    findSectionEndIndex(section.nodes, section.index) - section.index - 1,
+    ...replacementContentNodes,
+  );
+}
+
+function getPageTitle(meetingData, currentPage) {
+  return meetingData.title?.trim() || currentPage.title || "Untitled meeting note";
+}
+
+export function createMeetingNoteStorageValue(meetingData) {
+  return `
+    ${dateSection(meetingData.date)}
+    ${timeSection(meetingData)}
     ${peopleSection("Participants", meetingData.participants)}
     ${listSection("Goals", meetingData.goals)}
     ${listSection("Brainstorm", meetingData.brainstorm)}
     ${discussionTopicsSection(meetingData.discussionTopics)}
     ${relatedInfoSection(meetingData.resources)}
   `;
+}
+
+export function updateMeetingNoteStorageValue(currentStorageValue, meetingData) {
+  const document = parseStorageFragment(currentStorageValue || "");
+  const nodes = document.children;
+  const appendNodes = findEditableContainer(nodes);
+
+  for (const [title, buildSection] of EDITABLE_SECTION_BUILDERS) {
+    replaceSection(nodes, appendNodes, title, buildSection(meetingData));
+  }
+
+  return serializeStorageNodes(nodes);
 }
 
 async function readJsonResponse(response, description) {
@@ -130,12 +291,16 @@ export async function updateConfluenceMeetingNotePage({
     `fetch Confluence page ${meetingData.pageId}`,
   );
   const nextVersionNumber = (currentPage.version?.number ?? 1) + 1;
-  const bodyValue = createMeetingNoteStorageValue(meetingData);
+  const bodyValue = updateMeetingNoteStorageValue(
+    currentPage.body?.storage?.value || "",
+    meetingData,
+  );
+  const title = getPageTitle(meetingData, currentPage);
 
   const updateResponse = await updatePage(meetingData.pageId, {
     id: meetingData.pageId,
     status: "current",
-    title: meetingData.title || currentPage.title || "Untitled meeting note",
+    title,
     ...(currentPage.spaceId ? { spaceId: currentPage.spaceId } : {}),
     body: {
       representation: "storage",
@@ -151,6 +316,6 @@ export async function updateConfluenceMeetingNotePage({
 
   return {
     ...meetingData,
-    title: meetingData.title || currentPage.title || "",
+    title,
   };
 }

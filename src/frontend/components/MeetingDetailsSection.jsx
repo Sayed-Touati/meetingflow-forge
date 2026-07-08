@@ -28,13 +28,15 @@ const stickyActionsStyles = xcss({
 
 export default function MeetingDetailsSection({
     calendarMessage,
+    calendarMessageAppearance = "info",
     isDetailsVisible,
+    isRefreshing,
     meetingData,
     onCreateCalendarEvent,
     onDelete,
-    onEdit,
     onEditInConfluence,
     onOpenConfluence,
+    onRefresh,
     onToggleDetails,
 }) {
     return (
@@ -44,9 +46,10 @@ export default function MeetingDetailsSection({
                     <Box xcss={meetingNoteColumnStyles}>
                         <MeetingInfoCard
                             isDetailsVisible={isDetailsVisible}
+                            isRefreshing={isRefreshing}
                             meetingData={meetingData}
-                            onEdit={onEdit}
                             onEditInConfluence={onEditInConfluence}
+                            onRefresh={onRefresh}
                             onToggleDetails={onToggleDetails}
                         />
                     </Box>
@@ -64,7 +67,7 @@ export default function MeetingDetailsSection({
             </Box>
 
             {calendarMessage ? (
-                <SectionMessage appearance="info">
+                <SectionMessage appearance={calendarMessageAppearance}>
                     <Text>{calendarMessage}</Text>
                 </SectionMessage>
             ) : null}

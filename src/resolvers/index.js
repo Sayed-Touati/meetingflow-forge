@@ -7,10 +7,18 @@ import {
   validateCalendarEventDraft,
 } from "../calendar-event-form.mjs";
 import {
+  createGoogleCalendarAutomationStatus,
+  getAutomationSettings,
+  saveAutomationSettings,
+} from "../automation-settings.mjs";
+import {
   buildGoogleCalendarEventBody,
   extractGoogleCalendarEventLinks,
 } from "../google-calendar-event.mjs";
-import { syncMeetingNotesFromConfluence } from "../meeting-note-sync.mjs";
+import {
+  refreshMeetingNoteFromConfluence,
+  syncMeetingNotesFromConfluence,
+} from "../meeting-note-sync.mjs";
 import { updateConfluenceMeetingNotePage } from "../meeting-confluence-update.mjs";
 import {
   archiveConfluenceMeetingNotePage,
@@ -26,8 +34,21 @@ import {
 const resolver = new Resolver();
 const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
+function addMeetingAutomationStatus(meetingNote, automationSettings) {
+  return {
+    ...meetingNote,
+    automation: {
+      googleCalendar: createGoogleCalendarAutomationStatus(
+        meetingNote,
+        automationSettings,
+      ),
+    },
+  };
+}
+
 resolver.define("listMeetingNotesForDate", async (req) => {
   const date = req.payload?.date;
+  const automationSettings = await getAutomationSettings(kvs);
 
   await syncMeetingNotesFromConfluence({
     date,
@@ -44,6 +65,8 @@ resolver.define("listMeetingNotesForDate", async (req) => {
       api
         .asUser()
         .requestConfluence(route`/wiki/rest/api/search?cql=${cql}&limit=${limit}`),
+    prepareMeetingNote: (meetingNote) =>
+      addMeetingAutomationStatus(meetingNote, automationSettings),
   });
 
   return listMeetingNotesForDate(kvs, date);
@@ -53,42 +76,34 @@ resolver.define("getMeetingNote", async (req) => {
   return getMeetingNoteRecord(kvs, req.payload?.pageId);
 });
 
-resolver.define("saveLatestMeetingData", async (req) => {
-  const meetingData = req.payload?.meetingData;
+resolver.define("refreshMeetingNote", async (req) => {
+  const pageId = req.payload?.pageId;
+  const automationSettings = await getAutomationSettings(kvs);
 
-  if (!meetingData) {
-    return {
-      success: false,
-      message: "No meeting data provided.",
-    };
-  }
+  return refreshMeetingNoteFromConfluence({
+    pageId,
+    fetchPage: (pageIdToFetch) =>
+      api
+        .asUser()
+        .requestConfluence(
+          route`/wiki/api/v2/pages/${pageIdToFetch}?body-format=storage`,
+        ),
+    fetchUser: (accountId) =>
+      api
+        .asUser()
+        .requestConfluence(route`/wiki/rest/api/user?accountId=${accountId}`),
+    kvsClient: kvs,
+    prepareMeetingNote: (meetingNote) =>
+      addMeetingAutomationStatus(meetingNote, automationSettings),
+  });
+});
 
-  const savedMeetingData = meetingData.pageId
-    ? await updateConfluenceMeetingNotePage({
-        meetingData,
-        fetchPage: (pageId) =>
-          api
-            .asUser()
-            .requestConfluence(route`/wiki/api/v2/pages/${pageId}?body-format=storage`),
-        updatePage: (pageId, body) =>
-          api.asUser().requestConfluence(route`/wiki/api/v2/pages/${pageId}`, {
-            method: "PUT",
-            headers: {
-              "Accept": "application/json",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body),
-          }),
-      })
-    : meetingData;
+resolver.define("getAutomationSettings", async () => {
+  return getAutomationSettings(kvs);
+});
 
-  await saveMeetingNoteRecord(kvs, savedMeetingData);
-
-  return {
-    success: true,
-    meetingData: savedMeetingData,
-    message: "Meeting data saved.",
-  };
+resolver.define("saveAutomationSettings", async (req) => {
+  return saveAutomationSettings(kvs, req.payload?.settings);
 });
 
 function getMeetingDataPayload(req) {

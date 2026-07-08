@@ -1,67 +1,10 @@
 import React from "react";
 import {
+    Button,
     Heading,
-    Pressable,
     Stack,
     Text,
-    xcss,
 } from "@forge/react";
-
-
-const createActionButtonStyles = ({
-                                      backgroundColor,
-                                      hoverColor,
-                                      pressedColor,
-                                      textColor = "color.text.inverse",
-                                  }) =>
-    xcss({
-        width: "260px",
-        borderRadius: "border.radius.100",
-        paddingBlock: "space.100",
-        paddingInline: "space.150",
-        fontWeight: "font.weight.semibold",
-        textAlign: "center",
-
-        backgroundColor,
-        color: textColor,
-
-        ":hover": {
-            backgroundColor: hoverColor,
-        },
-
-        ":active": {
-            backgroundColor: pressedColor,
-        },
-    });
-
-
-const calendarButtonStyles = createActionButtonStyles({
-    backgroundColor: "color.background.brand.bold",
-    hoverColor: "color.background.brand.bold.hovered",
-    pressedColor: "color.background.brand.bold.pressed",
-});
-
-
-const slackButtonStyles = createActionButtonStyles({
-    backgroundColor: "color.background.accent.magenta.bolder",
-    hoverColor: "color.background.accent.magenta.bolder.hovered",
-    pressedColor: "color.background.accent.magenta.bolder.pressed",
-});
-
-const confluenceButtonStyles = createActionButtonStyles({
-    backgroundColor: "color.background.neutral",
-    hoverColor: "color.background.neutral.hovered",
-    pressedColor: "color.background.neutral.pressed",
-    textColor: "color.text",
-});
-
-
-const deleteButtonStyles = createActionButtonStyles({
-    backgroundColor: "color.background.danger.bold",
-    hoverColor: "color.background.danger.bold.hovered",
-    pressedColor: "color.background.danger.bold.pressed",
-});
-
 
 export default function MeetingActions({
                                            isConfluenceLinkAvailable,
@@ -87,29 +30,39 @@ export default function MeetingActions({
 
             <Stack space="space.100">
 
-                <Pressable
+                <Button
+                    appearance="primary"
+                    icon="calendar"
+                    iconPosition="before"
                     onClick={onCreateCalendarEvent}
-                    xcss={calendarButtonStyles}
+                    shouldFitContainer
                 >
                     Create Calendar Event
-                </Pressable>
+                </Button>
 
 
-                <Pressable
+                <Button
+                    appearance="discovery"
+                    icon="people"
+                    iconPosition="before"
+                    disabled={!onNotifySlack}
                     onClick={onNotifySlack}
-                    xcss={slackButtonStyles}
+                    shouldFitContainer
                 >
                     Notify Team on Slack
-                </Pressable>
+                </Button>
 
 
                 {isConfluenceLinkAvailable ? (
-                    <Pressable
+                    <Button
+                        appearance="subtle"
+                        icon="page"
+                        iconPosition="before"
                         onClick={onOpenConfluence}
-                        xcss={confluenceButtonStyles}
+                        shouldFitContainer
                     >
                         Open in Confluence
-                    </Pressable>
+                    </Button>
                 ) : (
                     <Text color="color.text.disabled">
                         Open in Confluence
@@ -117,12 +70,15 @@ export default function MeetingActions({
                 )}
 
 
-                <Pressable
+                <Button
+                    appearance="danger"
+                    icon="trash"
+                    iconPosition="before"
                     onClick={onDelete}
-                    xcss={deleteButtonStyles}
+                    shouldFitContainer
                 >
                     Delete
-                </Pressable>
+                </Button>
 
             </Stack>
 

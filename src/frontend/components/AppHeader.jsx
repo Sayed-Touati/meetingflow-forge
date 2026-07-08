@@ -3,10 +3,8 @@ import {
     Box,
     Button,
     Heading,
-    Icon,
     Inline,
     Popup,
-    Pressable,
     Stack,
     Text,
     Tooltip,
@@ -22,20 +20,6 @@ const infoPopupStyles = xcss({
     boxShadow: "elevation.shadow.overlay",
     padding: "space.200",
     width: "300px",
-});
-
-const infoIconStyles = xcss({
-    backgroundColor: "color.background.neutral.subtle",
-    borderRadius: "border.radius.full",
-    padding: "space.050",
-
-    ":hover": {
-        backgroundColor: "color.background.neutral.hovered",
-    },
-
-    ":active": {
-        backgroundColor: "color.background.neutral.pressed",
-    },
 });
 
 export default function AppHeader({
@@ -74,13 +58,11 @@ export default function AppHeader({
                         )}
                         trigger={() => (
                             <Tooltip text="About MeetingFlow">
-                                <Pressable onClick={onToggleInfo} xcss={infoIconStyles}>
-                                    <Icon
-                                        glyph="info"
-                                        label="About MeetingFlow"
-                                        size="small"
-                                    />
-                                </Pressable>
+                                <Button
+                                    appearance="subtle"
+                                    icon="info"
+                                    onClick={onToggleInfo}
+                                />
                             </Tooltip>
                         )}
                     />
