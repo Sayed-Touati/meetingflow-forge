@@ -65,6 +65,17 @@ function getPersonEmail(person) {
   return person.email || person.emailAddress || "";
 }
 
+function getDefaultedCalendarTime(value, fallback) {
+  return normalizeCalendarTime(value) || fallback;
+}
+
+function isSupportedCalendarTime(value) {
+  const cleanedValue = cleanText(value);
+  const hasSupportedShape = /^(\d{1,2}):(\d{2})(?:\s*([ap])\.?m\.?)?$/i.test(cleanedValue);
+
+  return hasSupportedShape && Boolean(normalizeCalendarTime(cleanedValue));
+}
+
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanText(value));
 }
@@ -81,21 +92,23 @@ function relatedLinksFromResources(resources) {
 }
 
 export function createCalendarEventDraft(meetingData = {}) {
+  const guests = (meetingData.participants ?? []).map((participant, index) => ({
+    key: getPersonKey(participant, index),
+    name: getPersonName(participant),
+    email: getPersonEmail(participant),
+    isKnownParticipant: true,
+  }));
+
   return {
     title: cleanText(meetingData.title),
     date: cleanText(meetingData.date),
-    startTime: normalizeCalendarTime(meetingData.startTime),
-    endTime: normalizeCalendarTime(meetingData.endTime),
-    inviteGuests: true,
+    startTime: getDefaultedCalendarTime(meetingData.startTime, "12:00 AM"),
+    endTime: getDefaultedCalendarTime(meetingData.endTime, "11:59 PM"),
+    inviteGuests: guests.every((guest) => Boolean(cleanText(guest.email))),
     guestsCanInviteOthers: false,
     guestsCanSeeOtherGuests: true,
     includeGoogleMeet: true,
-    guests: (meetingData.participants ?? []).map((participant, index) => ({
-      key: getPersonKey(participant, index),
-      name: getPersonName(participant),
-      email: getPersonEmail(participant),
-      isKnownParticipant: true,
-    })),
+    guests,
   };
 }
 
@@ -135,6 +148,8 @@ export function buildCalendarDescription(meetingData = {}) {
 export function validateCalendarEventDraft(draft = {}) {
   const fieldErrors = {};
   const guestErrors = {};
+  const startTimeText = cleanText(draft.startTime);
+  const endTimeText = cleanText(draft.endTime);
 
   if (!cleanText(draft.title)) {
     fieldErrors.title = "Add an event title.";
@@ -144,18 +159,22 @@ export function validateCalendarEventDraft(draft = {}) {
     fieldErrors.date = "Choose an event date.";
   }
 
-  if (!cleanText(draft.startTime)) {
+  if (!startTimeText) {
     fieldErrors.startTime = "Choose a start time.";
+  } else if (!isSupportedCalendarTime(startTimeText)) {
+    fieldErrors.startTime = "Enter a valid time, like 09:30 or 2:30 PM.";
   }
 
-  if (!cleanText(draft.endTime)) {
+  if (!endTimeText) {
     fieldErrors.endTime = "Choose an end time.";
+  } else if (!isSupportedCalendarTime(endTimeText)) {
+    fieldErrors.endTime = "Enter a valid time, like 10:15 or 3:30 PM.";
   }
 
   const startTime = normalizeCalendarTime(draft.startTime);
   const endTime = normalizeCalendarTime(draft.endTime);
 
-  if (startTime && endTime && endTime <= startTime) {
+  if (!fieldErrors.startTime && !fieldErrors.endTime && startTime && endTime && endTime <= startTime) {
     fieldErrors.endTime = "End time must be after start time.";
   }
 

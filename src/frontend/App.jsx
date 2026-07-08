@@ -22,6 +22,7 @@ import DeleteMeetingModal from "./components/DeleteMeetingModal";
 import MeetingDetailsSection from "./components/MeetingDetailsSection";
 import MeetingSelector from "./components/MeetingSelector";
 import { getEditableInputValue } from "./meeting-editing.mjs";
+import { getMessageAutoDismissMs } from "./message-timing.mjs";
 
 function getConfluenceEditUrl({ pageId, pageUrl }) {
     if (!pageUrl) {
@@ -460,10 +461,26 @@ export default function App() {
         loadAutomationSettings();
     }, []);
 
+    useEffect(() => {
+        const autoDismissMs = getMessageAutoDismissMs(calendarMessage);
+
+        if (!autoDismissMs) {
+            return undefined;
+        }
+
+        const timeoutId = setTimeout(() => {
+            clearCalendarMessage();
+        }, autoDismissMs);
+
+        return () => clearTimeout(timeoutId);
+    }, [calendarMessage]);
+
     const displayedMeetingData = editableMeetingData ?? selectedMeetingData;
     const hasSelectedMeeting = Boolean(displayedMeetingData);
     const googleCalendarAutomationStatus =
         displayedMeetingData?.automation?.googleCalendar;
+    const shouldShowGoogleCalendarAutomationStatus =
+        googleCalendarAutomationStatus?.status === "needs-review";
 
     return (
         <Stack space="space.300">
@@ -524,7 +541,7 @@ export default function App() {
                 />
             ) : null}
 
-            {googleCalendarAutomationStatus ? (
+            {shouldShowGoogleCalendarAutomationStatus ? (
                 <SectionMessage
                     appearance={getGoogleCalendarAutomationAppearance(
                         googleCalendarAutomationStatus.status,

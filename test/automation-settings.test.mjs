@@ -89,7 +89,34 @@ test("createGoogleCalendarAutomationStatus reports disabled automation", () => {
   );
 });
 
-test("createGoogleCalendarAutomationStatus reports missing meeting fields and participant emails", () => {
+test("createGoogleCalendarAutomationStatus treats missing times and participant emails as reviewable defaults", () => {
+  assert.deepEqual(
+    createGoogleCalendarAutomationStatus(
+      {
+        pageId: "page-1",
+        title: "Planning",
+        date: "2026-07-07",
+        startTime: "",
+        endTime: "",
+        participants: [
+          { displayName: "Sayed", email: "sayed@example.com" },
+          { displayName: "Iheb", email: "" },
+        ],
+      },
+      { autoCreateCalendarEvent: true },
+    ),
+    {
+      type: "google-calendar",
+      status: "ready",
+      message:
+        "Google Calendar automation is ready. Open MeetingFlow to review and create the event.",
+      missingFields: [],
+      missingParticipantEmails: [],
+    },
+  );
+});
+
+test("createGoogleCalendarAutomationStatus reports missing required identity fields", () => {
   assert.deepEqual(
     createGoogleCalendarAutomationStatus(
       {
@@ -107,8 +134,8 @@ test("createGoogleCalendarAutomationStatus reports missing meeting fields and pa
       status: "needs-review",
       message:
         "Google Calendar automation needs review before this meeting can be created.",
-      missingFields: ["title", "startTime"],
-      missingParticipantEmails: ["Sayed", "Iheb"],
+      missingFields: ["title"],
+      missingParticipantEmails: [],
     },
   );
 });

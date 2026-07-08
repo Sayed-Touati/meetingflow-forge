@@ -183,6 +183,7 @@ export default function CreateCalendarEventModal({
                         <Textfield
                             label="Title"
                             name="calendar-title"
+                            placeholder="Enter your calendar event name"
                             value={draft.title}
                             onChange={(value) => onUpdateDraft("title", value)}
                         />

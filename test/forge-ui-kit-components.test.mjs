@@ -11,3 +11,16 @@ test("meeting action CTAs use supported Forge UI Kit buttons", async () => {
     "Meeting action CTAs should not use unsupported Pressable components.",
   );
 });
+
+test("calendar event modal gives the title field a helpful placeholder", async () => {
+  const source = await readFile(
+    "src/frontend/components/CreateCalendarEventModal.jsx",
+    "utf8",
+  );
+
+  assert.equal(
+    source.includes('placeholder="Enter your calendar event name"'),
+    true,
+    "Calendar event title should guide users when the meeting title is blank.",
+  );
+});

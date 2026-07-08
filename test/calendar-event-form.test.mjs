@@ -36,7 +36,7 @@ test("createCalendarEventDraft pre-fills meeting values and guest rows", () => {
     date: "2026-07-08",
     startTime: "09:30",
     endTime: "10:15",
-    inviteGuests: true,
+    inviteGuests: false,
     guestsCanInviteOthers: false,
     guestsCanSeeOtherGuests: true,
     includeGoogleMeet: true,
@@ -79,6 +79,43 @@ test("createCalendarEventDraft normalizes meridiem meeting times", () => {
   );
 });
 
+test("createCalendarEventDraft uses review-friendly defaults for missing time and email data", () => {
+  assert.deepEqual(
+    createCalendarEventDraft({
+      title: "Untimed planning",
+      date: "2026-07-08",
+      participants: [
+        { accountId: "abc-123", displayName: "Sayed Touati", email: "sayed@example.com" },
+        { accountId: "def-456", displayName: "Iheb Touati" },
+      ],
+    }),
+    {
+      title: "Untimed planning",
+      date: "2026-07-08",
+      startTime: "12:00 AM",
+      endTime: "11:59 PM",
+      inviteGuests: false,
+      guestsCanInviteOthers: false,
+      guestsCanSeeOtherGuests: true,
+      includeGoogleMeet: true,
+      guests: [
+        {
+          key: "abc-123",
+          name: "Sayed Touati",
+          email: "sayed@example.com",
+          isKnownParticipant: true,
+        },
+        {
+          key: "def-456",
+          name: "Iheb Touati",
+          email: "",
+          isKnownParticipant: true,
+        },
+      ],
+    },
+  );
+});
+
 test("buildCalendarDescription includes goals, Confluence URL, and related info", () => {
   assert.equal(
     buildCalendarDescription(meetingData),
@@ -97,7 +134,10 @@ test("buildCalendarDescription includes goals, Confluence URL, and related info"
 });
 
 test("validateCalendarEventDraft requires known participant emails when invites are on", () => {
-  const draft = createCalendarEventDraft(meetingData);
+  const draft = {
+    ...createCalendarEventDraft(meetingData),
+    inviteGuests: true,
+  };
 
   assert.deepEqual(validateCalendarEventDraft(draft), {
     fieldErrors: {},
@@ -124,6 +164,7 @@ test("validateCalendarEventDraft ignores missing guest emails when invites are o
 test("validateCalendarEventDraft blocks invalid guest emails", () => {
   const draft = {
     ...createCalendarEventDraft(meetingData),
+    inviteGuests: true,
     guests: [
       {
         key: "guest-1",
@@ -154,6 +195,24 @@ test("validateCalendarEventDraft blocks end time before start time", () => {
   assert.deepEqual(validateCalendarEventDraft(draft), {
     fieldErrors: {
       endTime: "End time must be after start time.",
+    },
+    guestErrors: {},
+    isValid: false,
+  });
+});
+
+test("validateCalendarEventDraft explains invalid time formats before Google Calendar submission", () => {
+  const draft = {
+    ...createCalendarEventDraft(meetingData),
+    guests: [],
+    startTime: "25:00",
+    endTime: "later",
+  };
+
+  assert.deepEqual(validateCalendarEventDraft(draft), {
+    fieldErrors: {
+      startTime: "Enter a valid time, like 09:30 or 2:30 PM.",
+      endTime: "Enter a valid time, like 10:15 or 3:30 PM.",
     },
     guestErrors: {},
     isValid: false,
