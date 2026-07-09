@@ -89,7 +89,7 @@ test("createGoogleCalendarAutomationStatus reports disabled automation", () => {
   );
 });
 
-test("createGoogleCalendarAutomationStatus treats missing times and participant emails as reviewable defaults", () => {
+test("createGoogleCalendarAutomationStatus reports missing times for user entry", () => {
   assert.deepEqual(
     createGoogleCalendarAutomationStatus(
       {
@@ -107,10 +107,10 @@ test("createGoogleCalendarAutomationStatus treats missing times and participant 
     ),
     {
       type: "google-calendar",
-      status: "ready",
+      status: "needs-review",
       message:
-        "Google Calendar automation is ready. Open MeetingFlow to review and create the event.",
-      missingFields: [],
+        "Google Calendar automation needs review before this meeting can be created.",
+      missingFields: ["startTime", "endTime"],
       missingParticipantEmails: [],
     },
   );
@@ -134,7 +134,7 @@ test("createGoogleCalendarAutomationStatus reports missing required identity fie
       status: "needs-review",
       message:
         "Google Calendar automation needs review before this meeting can be created.",
-      missingFields: ["title"],
+      missingFields: ["title", "startTime"],
       missingParticipantEmails: [],
     },
   );

@@ -19,7 +19,7 @@ test("calendar event modal gives the title field a helpful placeholder", async (
   );
 
   assert.equal(
-    source.includes('placeholder="Enter your calendar event name"'),
+    source.includes('placeholder="Enter your calendar event title"'),
     true,
     "Calendar event title should guide users when the meeting title is blank.",
   );

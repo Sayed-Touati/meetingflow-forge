@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   addOrUpdateGoogleMeetResource,
   buildCalendarDescription,
+  buildCalendarDescriptionPreview,
   createCalendarEventDraft,
   validateCalendarEventDraft,
 } from "../src/calendar-event-form.mjs";
@@ -30,9 +31,9 @@ const meetingData = {
   ],
 };
 
-test("createCalendarEventDraft pre-fills meeting values and guest rows", () => {
+test("createCalendarEventDraft leaves event title empty so the placeholder is visible", () => {
   assert.deepEqual(createCalendarEventDraft(meetingData), {
-    title: "Launch planning",
+    title: "",
     date: "2026-07-08",
     startTime: "09:30",
     endTime: "10:15",
@@ -66,7 +67,7 @@ test("createCalendarEventDraft normalizes meridiem meeting times", () => {
       endTime: "3:15 pm",
     }),
     {
-      title: "Afternoon planning",
+      title: "",
       date: "2026-07-08",
       startTime: "14:05",
       endTime: "15:15",
@@ -79,7 +80,7 @@ test("createCalendarEventDraft normalizes meridiem meeting times", () => {
   );
 });
 
-test("createCalendarEventDraft uses review-friendly defaults for missing time and email data", () => {
+test("createCalendarEventDraft leaves missing times empty for user entry", () => {
   assert.deepEqual(
     createCalendarEventDraft({
       title: "Untimed planning",
@@ -90,10 +91,10 @@ test("createCalendarEventDraft uses review-friendly defaults for missing time an
       ],
     }),
     {
-      title: "Untimed planning",
+      title: "",
       date: "2026-07-08",
-      startTime: "12:00 AM",
-      endTime: "11:59 PM",
+      startTime: "",
+      endTime: "",
       inviteGuests: false,
       guestsCanInviteOthers: false,
       guestsCanSeeOtherGuests: true,
@@ -116,19 +117,162 @@ test("createCalendarEventDraft uses review-friendly defaults for missing time an
   );
 });
 
-test("buildCalendarDescription includes goals, Confluence URL, and related info", () => {
+test("validateCalendarEventDraft requires user-entered start and end times", () => {
+  const draft = createCalendarEventDraft({
+    title: "Untimed planning",
+    date: "2026-07-08",
+  });
+  draft.title = "Untimed planning";
+
+  assert.deepEqual(validateCalendarEventDraft(draft), {
+    fieldErrors: {
+      startTime: "Choose a start time.",
+      endTime: "Choose an end time.",
+    },
+    guestErrors: {},
+    isValid: false,
+  });
+});
+
+test("buildCalendarDescription includes goals and summarized hyperlinks", () => {
   assert.equal(
     buildCalendarDescription(meetingData),
     [
-      "Goals:",
+      "<p><strong>MeetingFlow summary</strong></p>",
+      "<ul>",
+      "<li><strong>Title:</strong> Launch planning</li>",
+      "<li><strong>Date:</strong> 2026-07-08</li>",
+      "<li><strong>Time:</strong> 09:30 - 10:15</li>",
+      "<li><strong>Participants:</strong> Sayed Touati, Iheb Touati</li>",
+      "</ul>",
+      "",
+      "<p><strong>Goals</strong></p>",
+      "<ul>",
+      "<li>Confirm launch plan</li>",
+      "<li>Assign follow-ups</li>",
+      "</ul>",
+      "",
+      '<p><a href="https://example.atlassian.net/wiki/spaces/TEAM/pages/12345/Launch">Confluence meeting note</a></p>',
+      "",
+      "<p><strong>Related info</strong></p>",
+      "<ul>",
+      '<li><a href="https://drive.google.com/document/d/example">Planning doc</a></li>',
+      "</ul>",
+    ].join("\n"),
+  );
+});
+
+test("buildCalendarDescription includes clean agenda extraction from discussion topics", () => {
+  assert.equal(
+    buildCalendarDescription({
+      ...meetingData,
+      discussionTopics: [
+        {
+          time: "09:30",
+          topic: "Launch scope",
+          presenter: { displayName: "Sayed Touati" },
+          notes: ["Confirm milestone", "Name final owner"],
+        },
+        {
+          time: "",
+          topic: "Risks",
+          presenter: [
+            { displayName: "Iheb Touati" },
+            { displayName: "Nadia Demo" },
+          ],
+          notes: "Capture launch blockers.",
+        },
+      ],
+    }),
+    [
+      "<p><strong>MeetingFlow summary</strong></p>",
+      "<ul>",
+      "<li><strong>Title:</strong> Launch planning</li>",
+      "<li><strong>Date:</strong> 2026-07-08</li>",
+      "<li><strong>Time:</strong> 09:30 - 10:15</li>",
+      "<li><strong>Participants:</strong> Sayed Touati, Iheb Touati</li>",
+      "</ul>",
+      "",
+      "<p><strong>Goals</strong></p>",
+      "<ul>",
+      "<li>Confirm launch plan</li>",
+      "<li>Assign follow-ups</li>",
+      "</ul>",
+      "",
+      "<p><strong>Agenda</strong></p>",
+      "<ul>",
+      "<li><strong>09:30:</strong> Launch scope - Sayed Touati<br>Confirm milestone<br>Name final owner</li>",
+      "<li>Risks - Iheb Touati, Nadia Demo<br>Capture launch blockers.</li>",
+      "</ul>",
+      "",
+      '<p><a href="https://example.atlassian.net/wiki/spaces/TEAM/pages/12345/Launch">Confluence meeting note</a></p>',
+      "",
+      "<p><strong>Related info</strong></p>",
+      "<ul>",
+      '<li><a href="https://drive.google.com/document/d/example">Planning doc</a></li>',
+      "</ul>",
+    ].join("\n"),
+  );
+});
+
+test("buildCalendarDescription escapes hyperlink labels and URLs", () => {
+  assert.equal(
+    buildCalendarDescription({
+      title: 'Launch "plan" <draft>',
+      date: "2026-07-08",
+      startTime: "09:30",
+      endTime: "10:15",
+      participants: [{ displayName: 'Sayed "Lead" <Owner>' }],
+      goals: ['Confirm "launch" <plan>'],
+      pageUrl: 'https://example.com/wiki?page="one"&view=<full>',
+      resources: [
+        {
+          title: 'Spec & "notes"',
+          url: 'https://example.com/spec?draft="yes"&owner=sayed',
+        },
+      ],
+    }),
+    [
+      "<p><strong>MeetingFlow summary</strong></p>",
+      "<ul>",
+      "<li><strong>Title:</strong> Launch &quot;plan&quot; &lt;draft&gt;</li>",
+      "<li><strong>Date:</strong> 2026-07-08</li>",
+      "<li><strong>Time:</strong> 09:30 - 10:15</li>",
+      "<li><strong>Participants:</strong> Sayed &quot;Lead&quot; &lt;Owner&gt;</li>",
+      "</ul>",
+      "",
+      "<p><strong>Goals</strong></p>",
+      "<ul>",
+      "<li>Confirm &quot;launch&quot; &lt;plan&gt;</li>",
+      "</ul>",
+      "",
+      '<p><a href="https://example.com/wiki?page=&quot;one&quot;&amp;view=&lt;full&gt;">Confluence meeting note</a></p>',
+      "",
+      "<p><strong>Related info</strong></p>",
+      "<ul>",
+      '<li><a href="https://example.com/spec?draft=&quot;yes&quot;&amp;owner=sayed">Spec &amp; &quot;notes&quot;</a></li>',
+      "</ul>",
+    ].join("\n"),
+  );
+});
+
+test("buildCalendarDescriptionPreview shows a clean non-HTML summary", () => {
+  assert.equal(
+    buildCalendarDescriptionPreview(meetingData),
+    [
+      "MeetingFlow summary",
+      "Title: Launch planning",
+      "Date: 2026-07-08",
+      "Time: 09:30 - 10:15",
+      "Participants: Sayed Touati, Iheb Touati",
+      "",
+      "Goals",
       "- Confirm launch plan",
       "- Assign follow-ups",
       "",
-      "Confluence meeting note:",
-      "https://example.atlassian.net/wiki/spaces/TEAM/pages/12345/Launch",
-      "",
-      "Related info:",
-      "- Planning doc: https://drive.google.com/document/d/example",
+      "Links",
+      "Confluence meeting note: https://example.atlassian.net/wiki/spaces/TEAM/pages/12345/Launch",
+      "Planning doc: https://drive.google.com/document/d/example",
     ].join("\n"),
   );
 });
@@ -136,6 +280,7 @@ test("buildCalendarDescription includes goals, Confluence URL, and related info"
 test("validateCalendarEventDraft requires known participant emails when invites are on", () => {
   const draft = {
     ...createCalendarEventDraft(meetingData),
+    title: "Launch planning",
     inviteGuests: true,
   };
 
@@ -151,6 +296,7 @@ test("validateCalendarEventDraft requires known participant emails when invites 
 test("validateCalendarEventDraft ignores missing guest emails when invites are off", () => {
   const draft = {
     ...createCalendarEventDraft(meetingData),
+    title: "Launch planning",
     inviteGuests: false,
   };
 
@@ -164,6 +310,7 @@ test("validateCalendarEventDraft ignores missing guest emails when invites are o
 test("validateCalendarEventDraft blocks invalid guest emails", () => {
   const draft = {
     ...createCalendarEventDraft(meetingData),
+    title: "Launch planning",
     inviteGuests: true,
     guests: [
       {
@@ -187,6 +334,7 @@ test("validateCalendarEventDraft blocks invalid guest emails", () => {
 test("validateCalendarEventDraft blocks end time before start time", () => {
   const draft = {
     ...createCalendarEventDraft(meetingData),
+    title: "Launch planning",
     guests: [],
     startTime: "11:00",
     endTime: "10:00",
@@ -204,6 +352,7 @@ test("validateCalendarEventDraft blocks end time before start time", () => {
 test("validateCalendarEventDraft explains invalid time formats before Google Calendar submission", () => {
   const draft = {
     ...createCalendarEventDraft(meetingData),
+    title: "Launch planning",
     guests: [],
     startTime: "25:00",
     endTime: "later",
@@ -222,6 +371,7 @@ test("validateCalendarEventDraft explains invalid time formats before Google Cal
 test("validateCalendarEventDraft accepts typed full-day time labels", () => {
   const draft = {
     ...createCalendarEventDraft(meetingData),
+    title: "Launch planning",
     startTime: "12:00 AM",
     endTime: "11:59 PM",
     guests: [],

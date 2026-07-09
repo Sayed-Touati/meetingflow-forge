@@ -17,7 +17,7 @@ import {
     Toggle,
     xcss,
 } from "@forge/react";
-import { buildCalendarDescription } from "../../calendar-event-form.mjs";
+import { buildCalendarDescriptionPreview } from "../../calendar-event-form.mjs";
 
 const fieldGroupStyles = xcss({
     flexGrow: 1,
@@ -164,7 +164,7 @@ export default function CreateCalendarEventModal({
     onUpdateDraft,
     onUpdateGuest,
 }) {
-    const description = buildCalendarDescription(meetingData);
+    const description = buildCalendarDescriptionPreview(meetingData);
 
     return (
         <Modal onClose={onCancel} title="Create calendar event" width="x-large">
@@ -183,7 +183,7 @@ export default function CreateCalendarEventModal({
                         <Textfield
                             label="Title"
                             name="calendar-title"
-                            placeholder="Enter your calendar event name"
+                            placeholder="Enter your calendar event title"
                             value={draft.title}
                             onChange={(value) => onUpdateDraft("title", value)}
                         />

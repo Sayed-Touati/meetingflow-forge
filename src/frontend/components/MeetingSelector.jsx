@@ -17,6 +17,7 @@ export default function MeetingSelector({
                                             onDateChange,
                                             onMeetingChange,
                                             selectedDate,
+                                            selectedMeetingOption,
                                         }) {
     const hasMeetings = meetingOptions.length > 0;
 
@@ -48,6 +49,7 @@ export default function MeetingSelector({
                                     : "No meeting notes found"
                         }
                         options={meetingOptions}
+                        value={selectedMeetingOption}
                         isDisabled={
                             isLoadingMeetings || !hasMeetings
                         }

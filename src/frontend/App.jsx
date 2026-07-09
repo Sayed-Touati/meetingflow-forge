@@ -75,6 +75,7 @@ function getGoogleCalendarAutomationTitle(status) {
 export default function App() {
     const [selectedDate, setSelectedDate] = useState("");
     const [meetingSummaries, setMeetingSummaries] = useState([]);
+    const [selectedMeetingId, setSelectedMeetingId] = useState("");
     const [selectedMeetingData, setSelectedMeetingData] = useState(null);
     const [editableMeetingData, setEditableMeetingData] = useState(null);
     const [isLoadingMeetings, setIsLoadingMeetings] = useState(true);
@@ -110,6 +111,11 @@ export default function App() {
             })),
         [meetingSummaries],
     );
+    const selectedMeetingOption = useMemo(
+        () =>
+            meetingOptions.find((meeting) => meeting.value === selectedMeetingId) ?? null,
+        [meetingOptions, selectedMeetingId],
+    );
 
     const showCalendarMessage = (message, appearance = "info") => {
         setCalendarMessage(message);
@@ -141,6 +147,7 @@ export default function App() {
         const summaries = await invoke("listMeetingNotesForDate", { date });
 
         setMeetingSummaries(summaries ?? []);
+        setSelectedMeetingId("");
         setSelectedMeetingData(null);
         setEditableMeetingData(null);
         setIsLoadingMeetings(false);
@@ -152,6 +159,7 @@ export default function App() {
 
     const loadSelectedMeeting = async (pageId) => {
         if (!pageId) {
+            setSelectedMeetingId("");
             setSelectedMeetingData(null);
             setEditableMeetingData(null);
             setIsDeleteModalOpen(false);
@@ -161,6 +169,7 @@ export default function App() {
         }
 
         setIsLoadingMeeting(true);
+        setSelectedMeetingId(pageId);
         clearCalendarMessage();
 
         const meetingData = await invoke("getMeetingNote", { pageId });
@@ -311,6 +320,7 @@ export default function App() {
         setMeetingSummaries((currentSummaries) =>
             currentSummaries.filter((meeting) => meeting.pageId !== removedPageId),
         );
+        setSelectedMeetingId("");
         setSelectedMeetingData(null);
         setEditableMeetingData(null);
         setIsDetailsVisible(true);
@@ -498,6 +508,7 @@ export default function App() {
                 onDateChange={handleDateChange}
                 onMeetingChange={loadSelectedMeeting}
                 selectedDate={selectedDate}
+                selectedMeetingOption={selectedMeetingOption}
             />
 
             {isLoadingMeetings || isLoadingMeeting ? (

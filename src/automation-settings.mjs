@@ -46,7 +46,7 @@ export function createGoogleCalendarAutomationStatus(meetingData = {}, settings 
     };
   }
 
-  const requiredFields = ["title", "date"];
+  const requiredFields = ["title", "date", "startTime", "endTime"];
   const missingFields = requiredFields.filter((fieldName) => !cleanText(meetingData[fieldName]));
   const missingParticipantEmails = [];
   const needsReview = missingFields.length > 0 || missingParticipantEmails.length > 0;

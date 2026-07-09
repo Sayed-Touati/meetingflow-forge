@@ -65,10 +65,6 @@ function getPersonEmail(person) {
   return person.email || person.emailAddress || "";
 }
 
-function getDefaultedCalendarTime(value, fallback) {
-  return normalizeCalendarTime(value) || fallback;
-}
-
 function isSupportedCalendarTime(value) {
   const cleanedValue = cleanText(value);
   const hasSupportedShape = /^(\d{1,2}):(\d{2})(?:\s*([ap])\.?m\.?)?$/i.test(cleanedValue);
@@ -78,6 +74,82 @@ function isSupportedCalendarTime(value) {
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanText(value));
+}
+
+function escapeHtml(value) {
+  return cleanText(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function htmlLink(url, label) {
+  return `<a href="${escapeHtml(url)}">${escapeHtml(label)}</a>`;
+}
+
+function getMeetingTimeRange(meetingData) {
+  const startTime = cleanText(meetingData.startTime);
+  const endTime = cleanText(meetingData.endTime);
+
+  if (startTime && endTime) {
+    return `${startTime} - ${endTime}`;
+  }
+
+  return startTime || endTime;
+}
+
+function getParticipantNames(participants = []) {
+  return participants.map(getPersonName).filter(Boolean);
+}
+
+function buildSummaryItems(meetingData) {
+  return [
+    ["Title", meetingData.title],
+    ["Date", meetingData.date],
+    ["Time", getMeetingTimeRange(meetingData)],
+    ["Participants", getParticipantNames(meetingData.participants).join(", ")],
+  ]
+    .map(([label, value]) => [label, cleanText(value)])
+    .filter(([, value]) => value);
+}
+
+function getTopicPresenterNames(presenter) {
+  if (!presenter) {
+    return "";
+  }
+
+  return Array.isArray(presenter)
+    ? presenter.map(getPersonName).filter(Boolean).join(", ")
+    : getPersonName(presenter);
+}
+
+function formatTopicNotes(notes) {
+  if (Array.isArray(notes)) {
+    return notes.map(cleanText).filter(Boolean).join("<br>");
+  }
+
+  return cleanText(notes);
+}
+
+function buildAgendaItem(topic) {
+  const topicText = cleanText(topic.topic);
+  const presenterText = getTopicPresenterNames(topic.presenter);
+  const notesText = formatTopicNotes(topic.notes);
+  const prefix = cleanText(topic.time)
+    ? `<strong>${escapeHtml(topic.time)}:</strong> `
+    : "";
+  const heading = [topicText, presenterText].filter(Boolean).join(" - ");
+  const escapedNotes = notesText
+    .split("<br>")
+    .map(escapeHtml)
+    .join("<br>");
+
+  return `${prefix}${escapeHtml(heading)}${escapedNotes ? `<br>${escapedNotes}` : ""}`;
+}
+
+function getAgendaItems(discussionTopics = []) {
+  return discussionTopics.map(buildAgendaItem).filter(Boolean);
 }
 
 function relatedLinksFromResources(resources) {
@@ -100,10 +172,10 @@ export function createCalendarEventDraft(meetingData = {}) {
   }));
 
   return {
-    title: cleanText(meetingData.title),
+    title: "",
     date: cleanText(meetingData.date),
-    startTime: getDefaultedCalendarTime(meetingData.startTime, "12:00 AM"),
-    endTime: getDefaultedCalendarTime(meetingData.endTime, "11:59 PM"),
+    startTime: normalizeCalendarTime(meetingData.startTime),
+    endTime: normalizeCalendarTime(meetingData.endTime),
     inviteGuests: guests.every((guest) => Boolean(cleanText(guest.email))),
     guestsCanInviteOthers: false,
     guestsCanSeeOtherGuests: true,
@@ -113,36 +185,104 @@ export function createCalendarEventDraft(meetingData = {}) {
 }
 
 export function buildCalendarDescription(meetingData = {}) {
-  const lines = [];
+  const blocks = [];
+  const summaryItems = buildSummaryItems(meetingData);
   const goals = (meetingData.goals ?? []).map(cleanText).filter(Boolean);
   const resources = (meetingData.resources ?? []).filter((resource) => resource?.url);
+  const agendaItems = getAgendaItems(meetingData.discussionTopics);
+
+  if (summaryItems.length) {
+    blocks.push(
+      [
+        "<p><strong>MeetingFlow summary</strong></p>",
+        "<ul>",
+        ...summaryItems.map(
+          ([label, value]) => `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</li>`,
+        ),
+        "</ul>",
+      ].join("\n"),
+    );
+  }
 
   if (goals.length) {
-    lines.push("Goals:");
-    goals.forEach((goal) => lines.push(`- ${goal}`));
+    blocks.push(
+      [
+        "<p><strong>Goals</strong></p>",
+        "<ul>",
+        ...goals.map((goal) => `<li>${escapeHtml(goal)}</li>`),
+        "</ul>",
+      ].join("\n"),
+    );
+  }
+
+  if (agendaItems.length) {
+    blocks.push(
+      [
+        "<p><strong>Agenda</strong></p>",
+        "<ul>",
+        ...agendaItems.map((agendaItem) => `<li>${agendaItem}</li>`),
+        "</ul>",
+      ].join("\n"),
+    );
   }
 
   if (meetingData.pageUrl) {
-    if (lines.length) {
-      lines.push("");
-    }
-
-    lines.push("Confluence meeting note:");
-    lines.push(meetingData.pageUrl);
+    blocks.push(`<p>${htmlLink(meetingData.pageUrl, "Confluence meeting note")}</p>`);
   }
 
   if (resources.length) {
-    if (lines.length) {
-      lines.push("");
-    }
+    blocks.push(
+      [
+        "<p><strong>Related info</strong></p>",
+        "<ul>",
+        ...resources.map((resource) => {
+          const label = cleanText(resource.title) || cleanText(resource.linkText) || "Link";
 
-    lines.push("Related info:");
-    resources.forEach((resource) => {
-      lines.push(`- ${cleanText(resource.title) || "Link"}: ${resource.url}`);
-    });
+          return `<li>${htmlLink(resource.url, label)}</li>`;
+        }),
+        "</ul>",
+      ].join("\n"),
+    );
   }
 
-  return lines.join("\n");
+  return blocks.join("\n\n");
+}
+
+export function buildCalendarDescriptionPreview(meetingData = {}) {
+  const blocks = [];
+  const summaryItems = buildSummaryItems(meetingData);
+  const goals = (meetingData.goals ?? []).map(cleanText).filter(Boolean);
+  const resources = (meetingData.resources ?? []).filter((resource) => resource?.url);
+  const links = [];
+
+  if (meetingData.pageUrl) {
+    links.push(`Confluence meeting note: ${meetingData.pageUrl}`);
+  }
+
+  resources.forEach((resource) => {
+    const label = cleanText(resource.title) || cleanText(resource.linkText) || "Link";
+
+    links.push(`${label}: ${resource.url}`);
+  });
+
+  if (summaryItems.length) {
+    blocks.push(
+      [
+        "MeetingFlow summary",
+        ...summaryItems.map(([label, value]) => `${label}: ${value}`),
+      ].join("\n"),
+    );
+  }
+
+  if (goals.length) {
+    blocks.push(["Goals", ...goals.map((goal) => `- ${goal}`)].join("\n"));
+  }
+
+  if (links.length) {
+    blocks.push(["Links", ...links].join("\n"));
+  }
+
+  return blocks.join("\n\n");
 }
 
 export function validateCalendarEventDraft(draft = {}) {
