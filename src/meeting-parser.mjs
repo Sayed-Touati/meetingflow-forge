@@ -204,10 +204,39 @@ function parseListSection(sectionNodes) {
   return fallbackText ? [fallbackText] : [];
 }
 
+function parseFlexibleMeetingTime(text) {
+  const timePattern = String.raw`(?:\d{1,2}:\d{2}(?:\s*[ap]\.?m\.?)?|\d{1,2}\s*[ap]\.?m\.?)`;
+  const timeRangeMatch = cleanText(text).match(
+    new RegExp(`(${timePattern})\\s*(?:-|â€“|â€”|to)\\s*(${timePattern})`, "i"),
+  );
+
+  if (timeRangeMatch) {
+    return {
+      startTime: cleanText(timeRangeMatch[1]),
+      endTime: cleanText(timeRangeMatch[2]),
+    };
+  }
+
+  const singleTimeMatch = cleanText(text).match(new RegExp(`(${timePattern})`, "i"));
+
+  return singleTimeMatch
+    ? {
+        startTime: cleanText(singleTimeMatch[1]),
+        endTime: "",
+      }
+    : null;
+}
+
 function parseMeetingTime(sectionNodesByHeading) {
   const timeText = getNodesText(
     getSectionNodes(sectionNodesByHeading, ["Time", "Date and time", "When"]),
   );
+  const flexibleMeetingTime = parseFlexibleMeetingTime(timeText);
+
+  if (flexibleMeetingTime) {
+    return flexibleMeetingTime;
+  }
+
   const timeRangeMatch = timeText.match(
     /(\d{1,2}:\d{2}(?:\s*[ap]m)?)\s*(?:-|–|—|to)\s*(\d{1,2}:\d{2}(?:\s*[ap]m)?)/i,
   );

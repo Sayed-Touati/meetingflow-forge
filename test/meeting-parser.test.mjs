@@ -230,6 +230,26 @@ test("parseMeetingNotePage preserves Confluence bullet notes in discussion topic
   ]);
 });
 
+test("parseMeetingNotePage extracts hour-only meridiem time ranges from the Time section", () => {
+  const page = {
+    id: "hour-only-time",
+    title: "Hour-only time sync",
+    body: {
+      storage: {
+        value: `
+          <h2>Time</h2>
+          <p>2 PM - 3:30 PM</p>
+        `,
+      },
+    },
+  };
+
+  const meetingNote = parseMeetingNotePage(page);
+
+  assert.equal(meetingNote.startTime, "2 PM");
+  assert.equal(meetingNote.endTime, "3:30 PM");
+});
+
 test("parseMeetingNotePage keeps Related info labels separate from link text", () => {
   const page = {
     id: "related-info-link-labels",

@@ -3,15 +3,21 @@ function cleanText(value) {
 }
 
 export function normalizeCalendarTime(value) {
-  const match = cleanText(value).match(/^(\d{1,2}):(\d{2})(?:\s*([ap])\.?m\.?)?$/i);
+  const match = cleanText(value).match(/^(\d{1,2})(?::(\d{2}))?(?:\s*([ap])\.?m\.?)?$/i);
 
   if (!match) {
     return cleanText(value);
   }
 
   const [, hourText, minuteText, meridiem] = match;
+  const hasMinute = typeof minuteText === "string";
+
+  if (!hasMinute && !meridiem) {
+    return cleanText(value);
+  }
+
   let hour = Number(hourText);
-  const minute = Number(minuteText);
+  const minute = Number(minuteText ?? "00");
 
   if (minute > 59 || hour > 23 || (meridiem && hour > 12)) {
     return "";
@@ -25,7 +31,7 @@ export function normalizeCalendarTime(value) {
     }
   }
 
-  return `${String(hour).padStart(2, "0")}:${minuteText}`;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 function getPersonKey(person, index) {
@@ -163,24 +169,48 @@ function relatedLinksFromResources(resources) {
     }));
 }
 
-export function createCalendarEventDraft(meetingData = {}) {
+export function createCalendarEventDraft(meetingData = {}, options = {}) {
+  return createCalendarEventDraftFromMeeting(meetingData, options);
+}
+
+function getDateFromDateTime(value) {
+  return cleanText(value).split("T")[0] || "";
+}
+
+function getTimeFromDateTime(value) {
+  const timeText = cleanText(value).split("T")[1]?.slice(0, 5) || "";
+
+  return normalizeCalendarTime(timeText);
+}
+
+function createCalendarEventDraftFromMeeting(meetingData = {}, { mode = "create" } = {}) {
   const guests = (meetingData.participants ?? []).map((participant, index) => ({
     key: getPersonKey(participant, index),
     name: getPersonName(participant),
     email: getPersonEmail(participant),
     isKnownParticipant: true,
   }));
+  const calendarEvent = mode === "update" ? meetingData.calendarEvent : null;
+  const calendarGuests = Array.isArray(calendarEvent?.guests)
+    ? calendarEvent.guests
+    : guests;
 
   return {
-    title: "",
-    date: cleanText(meetingData.date),
-    startTime: normalizeCalendarTime(meetingData.startTime),
-    endTime: normalizeCalendarTime(meetingData.endTime),
-    inviteGuests: guests.every((guest) => Boolean(cleanText(guest.email))),
-    guestsCanInviteOthers: false,
-    guestsCanSeeOtherGuests: true,
-    includeGoogleMeet: true,
-    guests,
+    title: cleanText(calendarEvent?.title) || (calendarEvent ? cleanText(meetingData.title) : ""),
+    date: getDateFromDateTime(calendarEvent?.startDateTime) || cleanText(meetingData.date),
+    startTime:
+      getTimeFromDateTime(calendarEvent?.startDateTime) ||
+      normalizeCalendarTime(meetingData.startTime),
+    endTime:
+      getTimeFromDateTime(calendarEvent?.endDateTime) ||
+      normalizeCalendarTime(meetingData.endTime),
+    inviteGuests:
+      calendarEvent?.inviteGuests ??
+      calendarGuests.every((guest) => Boolean(cleanText(guest.email))),
+    guestsCanInviteOthers: calendarEvent?.guestsCanInviteOthers ?? false,
+    guestsCanSeeOtherGuests: calendarEvent?.guestsCanSeeOtherGuests ?? true,
+    includeGoogleMeet: calendarEvent?.includeGoogleMeet ?? true,
+    guests: calendarGuests,
   };
 }
 
@@ -194,7 +224,8 @@ export function buildCalendarDescription(meetingData = {}) {
   if (summaryItems.length) {
     blocks.push(
       [
-        "<p><strong>MeetingFlow summary</strong></p>",
+        "<p><strong>MeetingFlow event brief</strong></p>",
+        "<p>Created from the Confluence meeting note. Use this brief to confirm goals, timing, attendees, and supporting links before the meeting starts.</p>",
         "<ul>",
         ...summaryItems.map(
           ([label, value]) => `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</li>`,
@@ -268,7 +299,8 @@ export function buildCalendarDescriptionPreview(meetingData = {}) {
   if (summaryItems.length) {
     blocks.push(
       [
-        "MeetingFlow summary",
+        "MeetingFlow event brief",
+        "Created from the Confluence meeting note.",
         ...summaryItems.map(([label, value]) => `${label}: ${value}`),
       ].join("\n"),
     );

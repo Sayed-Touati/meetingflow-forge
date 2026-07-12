@@ -99,12 +99,17 @@ function formatDate(value) {
     }).format(date);
 }
 
-function formatTime({ startTime, endTime }) {
-    if (startTime && endTime) {
-        return `${startTime} - ${endTime}`;
+function formatCalendarEventTime(calendarEvent) {
+    if (!calendarEvent?.startDateTime) {
+        return "";
     }
 
-    return startTime || "No time extracted.";
+    const startDate = calendarEvent.startDateTime.split("T")[0];
+    const startTime = calendarEvent.startDateTime.split("T")[1]?.slice(0, 5);
+    const endTime = calendarEvent.endDateTime?.split("T")[1]?.slice(0, 5);
+    const timeRange = [startTime, endTime].filter(Boolean).join(" - ");
+
+    return [startDate, timeRange].filter(Boolean).join(" | ");
 }
 
 function getParticipantIdentifier(participant) {
@@ -334,15 +339,19 @@ function ResourcesList({ resources }) {
 }
 
 export default function MeetingInfoCard({
+    calendarEventStatus,
     isDetailsVisible,
     isRefreshing,
     meetingData,
+    onCreateCalendarEvent,
     onEditInConfluence,
     onRefresh,
     onToggleDetails,
 }) {
     const detailsToggleLabel = isDetailsVisible ? "Hide details" : "Show details";
-    const meetingTime = formatTime(meetingData);
+    const calendarEventTime = formatCalendarEventTime(
+        calendarEventStatus?.calendarEvent,
+    );
     const resources = normalizeResources(meetingData);
 
     return (
@@ -406,8 +415,21 @@ export default function MeetingInfoCard({
                             </Box>
 
                             <Box xcss={summaryFieldStyles}>
-                                <MeetingField icon="clock" label="Time">
-                                    <SummaryValue>{meetingTime}</SummaryValue>
+                                <MeetingField icon="calendar" label="Calendar event time">
+                                    {calendarEventStatus?.hasCalendarEvent ? (
+                                        <SummaryValue>
+                                            {calendarEventTime || "No calendar time saved."}
+                                        </SummaryValue>
+                                    ) : (
+                                        <Button
+                                            appearance="primary"
+                                            icon="calendar"
+                                            iconPosition="before"
+                                            onClick={onCreateCalendarEvent}
+                                        >
+                                            Create calendar event
+                                        </Button>
+                                    )}
                                 </MeetingField>
                             </Box>
                         </Inline>

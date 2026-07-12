@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   createMeetingNoteStorageValue,
+  updateConfluenceMeetingNoteRelatedInfoPage,
   updateMeetingNoteStorageValue,
+  updateMeetingNoteRelatedInfoStorageValue,
   updateConfluenceMeetingNotePage,
 } from "../src/meeting-confluence-update.mjs";
 
@@ -252,6 +254,132 @@ test("updateMeetingNoteStorageValue recognizes icon-prefixed Meeting Notes templ
   );
 });
 
+test("updateMeetingNoteRelatedInfoStorageValue changes only the related info section", () => {
+  const currentStorageValue = `
+    <h2><ac:emoticon ac:name="calendar_spiral" />&nbsp;Date</h2>
+    <p><time datetime="2026-07-09" /></p>
+    <h2><ac:emoticon ac:name="busts_in_silhouette" />&nbsp;Participants</h2>
+    <p>Sayed Touati</p>
+    <p>Iheb Touati</p>
+    <h2><ac:emoticon ac:name="goal" />&nbsp;Goals</h2>
+    <p>hello how ar eyou ih=</p>
+    <h2><ac:emoticon ac:name="art" />&nbsp;Brainstorm</h2>
+    <p>am good</p>
+    <h2><ac:emoticon ac:name="speaking_head" />&nbsp;Discussion topics</h2>
+    <table>
+      <tbody>
+        <tr><th>Time</th><th>Topic</th><th>Presenter</th><th>Notes</th></tr>
+      </tbody>
+    </table>
+    <h2><ac:emoticon ac:name="white_check_mark" />&nbsp;Action items</h2>
+    <p>Keep action items.</p>
+    <h2><ac:emoticon ac:name="arrow_heading_up" />&nbsp;Decisions</h2>
+    <p>Keep decisions.</p>
+    <h2><ac:emoticon ac:name="card_box" />&nbsp;Related info</h2>
+    <p>meeting link: <a href="https://example.com/old">link</a></p>
+  `;
+
+  const updatedStorageValue = updateMeetingNoteRelatedInfoStorageValue(
+    currentStorageValue,
+    {
+      resources: [
+        {
+          title: "meeting link",
+          linkText: "link",
+          url: "https://example.com/old",
+          type: "link",
+        },
+        {
+          title: "Google Meet",
+          linkText: "link",
+          url: "https://meet.google.com/new-link",
+          type: "google-meet",
+        },
+      ],
+    },
+  );
+
+  assert.match(updatedStorageValue, /hello how ar eyou ih=/);
+  assert.match(updatedStorageValue, /am good/);
+  assert.match(updatedStorageValue, /Keep action items\./);
+  assert.match(updatedStorageValue, /Keep decisions\./);
+  assert.match(updatedStorageValue, /<ac:emoticon ac:name="goal" \/>/);
+  assert.match(updatedStorageValue, /<a href="https:\/\/meet.google.com\/new-link">link<\/a>/);
+  assert.doesNotMatch(updatedStorageValue, /Confirm launch plan/);
+  assert.doesNotMatch(updatedStorageValue, /Review calendar automation/);
+  assert.equal(
+    (updatedStorageValue.match(/Related info<\/h2>/g) ?? []).length,
+    1,
+  );
+});
+
+test("updateMeetingNoteRelatedInfoStorageValue preserves storage outside related info exactly", () => {
+  const beforeRelatedInfo = [
+    '<ac:layout><ac:layout-section ac:type="single"><ac:layout-cell>',
+    '<h2><ac:emoticon ac:name="goal" />&nbsp;Goals</h2>',
+    "<p>Keep this exact spacing &amp; entity.</p>",
+    '<ac:structured-macro ac:name="status"><ac:parameter ac:name="colour">Green</ac:parameter></ac:structured-macro>',
+    '<h2><ac:emoticon ac:name="card_box" />&nbsp;Related info</h2>',
+  ].join("");
+  const afterRelatedInfo = [
+    '<h2><ac:emoticon ac:name="white_check_mark" />&nbsp;Action items</h2>',
+    "<p>Keep this tail exactly.</p>",
+    "</ac:layout-cell></ac:layout-section></ac:layout>",
+  ].join("");
+  const currentStorageValue = `${beforeRelatedInfo}<p>old link</p>${afterRelatedInfo}`;
+
+  const updatedStorageValue = updateMeetingNoteRelatedInfoStorageValue(
+    currentStorageValue,
+    {
+      resources: [
+        {
+          title: "Google Meet",
+          linkText: "link",
+          url: "https://meet.google.com/new-link",
+          type: "google-meet",
+        },
+      ],
+    },
+  );
+
+  assert.equal(updatedStorageValue.startsWith(beforeRelatedInfo), true);
+  assert.equal(updatedStorageValue.endsWith(afterRelatedInfo), true);
+  assert.match(updatedStorageValue, /old link/);
+  assert.match(updatedStorageValue, /<a href="https:\/\/meet.google.com\/new-link">link<\/a>/);
+});
+
+test("updateMeetingNoteRelatedInfoStorageValue appends Meet link without replacing existing related info", () => {
+  const currentStorageValue = [
+    "<h2>Related info</h2>",
+    '<p>meeting link: <a href="https://example.com/old">link</a></p>',
+    "<p>Keep this custom note exactly.</p>",
+    "<h2>Action items</h2>",
+    "<p>Keep the tail.</p>",
+  ].join("");
+
+  const updatedStorageValue = updateMeetingNoteRelatedInfoStorageValue(
+    currentStorageValue,
+    {
+      resources: [
+        {
+          title: "Google Meet",
+          linkText: "link",
+          url: "https://meet.google.com/new-link",
+          type: "google-meet",
+        },
+      ],
+    },
+  );
+
+  assert.match(
+    updatedStorageValue,
+    /<p>meeting link: <a href="https:\/\/example.com\/old">link<\/a><\/p>/,
+  );
+  assert.match(updatedStorageValue, /<p>Keep this custom note exactly\.<\/p>/);
+  assert.match(updatedStorageValue, /<p>Google Meet: <a href="https:\/\/meet.google.com\/new-link">link<\/a><\/p>/);
+  assert.equal(updatedStorageValue.endsWith("<h2>Action items</h2><p>Keep the tail.</p>"), true);
+});
+
 test("updateConfluenceMeetingNotePage updates the fetched full storage body", async () => {
   let updatedBody;
 
@@ -290,6 +418,46 @@ test("updateConfluenceMeetingNotePage updates the fetched full storage body", as
   assert.match(updatedBody.body.value, /This must survive\./);
   assert.match(updatedBody.body.value, /Confirm launch plan/);
   assert.doesNotMatch(updatedBody.body.value, /Old goal/);
+});
+
+test("updateConfluenceMeetingNoteRelatedInfoPage sends only the related info storage change", async () => {
+  let updatedBody;
+
+  await updateConfluenceMeetingNoteRelatedInfoPage({
+    meetingData: editedMeetingData,
+    fetchPage: async () => ({
+      ok: true,
+      json: async () => ({
+        id: "12345",
+        title: "Original title",
+        spaceId: "SPACE",
+        version: { number: 4 },
+        body: {
+          storage: {
+            value: `
+              <h2>Goals</h2>
+              <ul><li>Old goal that must stay</li></ul>
+              <h2>Related info</h2>
+              <p>Old related info</p>
+            `,
+          },
+        },
+      }),
+    }),
+    updatePage: async (pageId, body) => {
+      updatedBody = body;
+
+      return {
+        ok: true,
+        json: async () => ({}),
+      };
+    },
+  });
+
+  assert.equal(updatedBody.title, "Original title");
+  assert.match(updatedBody.body.value, /Old goal that must stay/);
+  assert.match(updatedBody.body.value, /<a href="https:\/\/meet.google.com\/pio-ecmh-dzw">link<\/a>/);
+  assert.doesNotMatch(updatedBody.body.value, /Confirm launch plan/);
 });
 
 test("updateConfluenceMeetingNotePage falls back to current title for blank edits", async () => {

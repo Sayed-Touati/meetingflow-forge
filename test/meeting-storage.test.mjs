@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  addCalendarEventToMeetingNoteRecord,
+  createCalendarEventStatus,
+  createMeetingDeletionPlan,
   getMeetingNoteRecord,
   listMeetingNotesForDate,
   removeMeetingNoteRecord,
@@ -78,6 +81,55 @@ test("saveMeetingNoteRecord stores page note and meeting-note indexes", async ()
           pageUrl: "https://example.com/old",
         },
       ],
+    },
+  ]);
+});
+
+test("saveMeetingNoteRecord preserves existing calendar event metadata when refreshing from Confluence", async () => {
+  const kvs = createMemoryKvs({
+    "meeting-note:existing-page": {
+      pageId: "existing-page",
+      title: "Original sync",
+      date: "2026-07-08",
+      calendarEvent: {
+        eventId: "event-123",
+        eventUrl: "https://calendar.google.com/event?eid=123",
+        meetUrl: "https://meet.google.com/abc-defg-hij",
+        startDateTime: "2026-07-09T14:00:00Z",
+        endDateTime: "2026-07-09T15:00:00Z",
+        timeZone: "Africa/Tunis",
+      },
+    },
+  });
+
+  await saveMeetingNoteRecord(kvs, {
+    pageId: "existing-page",
+    title: "Refreshed sync",
+    date: "2026-07-09",
+    pageUrl: "https://example.com/refreshed",
+  });
+
+  assert.deepEqual(await getMeetingNoteRecord(kvs, "existing-page"), {
+    pageId: "existing-page",
+    title: "Refreshed sync",
+    date: "2026-07-09",
+    pageUrl: "https://example.com/refreshed",
+    calendarEvent: {
+      eventId: "event-123",
+      eventUrl: "https://calendar.google.com/event?eid=123",
+      meetUrl: "https://meet.google.com/abc-defg-hij",
+      startDateTime: "2026-07-09T14:00:00Z",
+      endDateTime: "2026-07-09T15:00:00Z",
+      timeZone: "Africa/Tunis",
+    },
+  });
+  assert.deepEqual(await listMeetingNotesForDate(kvs, "2026-07-09"), [
+    {
+      pageId: "existing-page",
+      title: "Refreshed sync",
+      date: "2026-07-09",
+      pageUrl: "https://example.com/refreshed",
+      hasCalendarEvent: true,
     },
   ]);
 });
@@ -215,4 +267,122 @@ test("removeMeetingNoteRecord deletes the full note and selector index entries",
   ]);
   assert.deepEqual(await listMeetingNotesForDate(kvs, "2026-07-05"), []);
   assert.equal(await getMeetingNoteRecord(kvs, "removed-page"), null);
+});
+
+test("addCalendarEventToMeetingNoteRecord stores calendar event metadata in the note record", async () => {
+  const kvs = createMemoryKvs({
+    "meeting-note:page-with-event": {
+      pageId: "page-with-event",
+      title: "Calendar sync",
+      date: "2026-07-09",
+    },
+  });
+
+  const updatedMeeting = await addCalendarEventToMeetingNoteRecord(kvs, "page-with-event", {
+    eventId: "event-123",
+    eventUrl: "https://calendar.google.com/event?eid=123",
+    meetUrl: "https://meet.google.com/abc-defg-hij",
+    startDateTime: "2026-07-09T14:00:00",
+    endDateTime: "2026-07-09T15:00:00",
+    timeZone: "Africa/Tunis",
+  });
+
+  assert.deepEqual(updatedMeeting.calendarEvent, {
+    eventId: "event-123",
+    eventUrl: "https://calendar.google.com/event?eid=123",
+    meetUrl: "https://meet.google.com/abc-defg-hij",
+    startDateTime: "2026-07-09T14:00:00",
+    endDateTime: "2026-07-09T15:00:00",
+    timeZone: "Africa/Tunis",
+  });
+  assert.deepEqual(await getMeetingNoteRecord(kvs, "page-with-event"), updatedMeeting);
+});
+
+test("createCalendarEventStatus reports existing and future calendar events", () => {
+  assert.deepEqual(
+    createCalendarEventStatus(
+      {
+        calendarEvent: {
+          eventId: "event-123",
+          startDateTime: "2026-07-09T14:00:00",
+        },
+      },
+      new Date("2026-07-09T12:00:00Z"),
+    ),
+    {
+      hasCalendarEvent: true,
+      canDeleteCalendarEvent: true,
+      calendarEvent: {
+        eventId: "event-123",
+        startDateTime: "2026-07-09T14:00:00",
+      },
+    },
+  );
+});
+
+test("createCalendarEventStatus blocks calendar deletion after event start", () => {
+  assert.deepEqual(
+    createCalendarEventStatus(
+      {
+        calendarEvent: {
+          eventId: "event-123",
+          startDateTime: "2026-07-09T10:00:00Z",
+        },
+      },
+      new Date("2026-07-09T12:00:00Z"),
+    ),
+    {
+      hasCalendarEvent: true,
+      canDeleteCalendarEvent: false,
+      calendarEvent: {
+        eventId: "event-123",
+        startDateTime: "2026-07-09T10:00:00Z",
+      },
+    },
+  );
+});
+
+test("createMeetingDeletionPlan only deletes calendar events when explicitly requested and still future", () => {
+  const futureMeeting = {
+    calendarEvent: {
+      eventId: "event-123",
+      startDateTime: "2026-07-09T14:00:00Z",
+    },
+  };
+  const now = new Date("2026-07-09T12:00:00Z");
+
+  assert.deepEqual(
+    createMeetingDeletionPlan(futureMeeting, { deleteCalendarEvent: false }, now),
+    {
+      canDeleteMeetingNote: true,
+      shouldDeleteCalendarEvent: false,
+      message: "",
+    },
+  );
+  assert.deepEqual(
+    createMeetingDeletionPlan(futureMeeting, { deleteCalendarEvent: true }, now),
+    {
+      canDeleteMeetingNote: true,
+      shouldDeleteCalendarEvent: true,
+      message: "",
+    },
+  );
+  assert.deepEqual(
+    createMeetingDeletionPlan(
+      {
+        calendarEvent: {
+          eventId: "event-123",
+          startDateTime: "2026-07-09T10:00:00Z",
+        },
+      },
+      { deleteCalendarEvent: true },
+      now,
+    ),
+    {
+      canDeleteMeetingNote: false,
+      shouldDeleteCalendarEvent: false,
+      message:
+        "The Google Calendar event has already started. Choose Delete note only to remove the Confluence meeting note.",
+    },
+  );
 });

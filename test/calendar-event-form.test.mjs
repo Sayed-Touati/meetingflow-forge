@@ -6,6 +6,7 @@ import {
   buildCalendarDescription,
   buildCalendarDescriptionPreview,
   createCalendarEventDraft,
+  normalizeCalendarTime,
   validateCalendarEventDraft,
 } from "../src/calendar-event-form.mjs";
 
@@ -58,6 +59,48 @@ test("createCalendarEventDraft leaves event title empty so the placeholder is vi
   });
 });
 
+test("createCalendarEventDraft pre-fills update mode from linked calendar metadata", () => {
+  const draft = createCalendarEventDraft({
+    ...meetingData,
+    calendarEvent: {
+      eventId: "event-123",
+      title: "Existing calendar title",
+      startDateTime: "2026-07-09T14:30:00Z",
+      endDateTime: "2026-07-09T15:45:00Z",
+      timeZone: "Africa/Tunis",
+      inviteGuests: true,
+      guestsCanInviteOthers: true,
+      guestsCanSeeOtherGuests: false,
+      includeGoogleMeet: false,
+      guests: [
+        {
+          key: "guest-1",
+          name: "Existing Guest",
+          email: "guest@example.com",
+          isKnownParticipant: false,
+        },
+      ],
+    },
+  }, { mode: "update" });
+
+  assert.equal(draft.title, "Existing calendar title");
+  assert.equal(draft.date, "2026-07-09");
+  assert.equal(draft.startTime, "14:30");
+  assert.equal(draft.endTime, "15:45");
+  assert.equal(draft.inviteGuests, true);
+  assert.equal(draft.guestsCanInviteOthers, true);
+  assert.equal(draft.guestsCanSeeOtherGuests, false);
+  assert.equal(draft.includeGoogleMeet, false);
+  assert.deepEqual(draft.guests, [
+    {
+      key: "guest-1",
+      name: "Existing Guest",
+      email: "guest@example.com",
+      isKnownParticipant: false,
+    },
+  ]);
+});
+
 test("createCalendarEventDraft normalizes meridiem meeting times", () => {
   assert.deepEqual(
     createCalendarEventDraft({
@@ -78,6 +121,12 @@ test("createCalendarEventDraft normalizes meridiem meeting times", () => {
       guests: [],
     },
   );
+});
+
+test("normalizeCalendarTime accepts hour-only meridiem times from meeting notes", () => {
+  assert.equal(normalizeCalendarTime("2 PM"), "14:00");
+  assert.equal(normalizeCalendarTime("11am"), "11:00");
+  assert.equal(normalizeCalendarTime("12 AM"), "00:00");
 });
 
 test("createCalendarEventDraft leaves missing times empty for user entry", () => {
@@ -138,7 +187,8 @@ test("buildCalendarDescription includes goals and summarized hyperlinks", () => 
   assert.equal(
     buildCalendarDescription(meetingData),
     [
-      "<p><strong>MeetingFlow summary</strong></p>",
+      "<p><strong>MeetingFlow event brief</strong></p>",
+      "<p>Created from the Confluence meeting note. Use this brief to confirm goals, timing, attendees, and supporting links before the meeting starts.</p>",
       "<ul>",
       "<li><strong>Title:</strong> Launch planning</li>",
       "<li><strong>Date:</strong> 2026-07-08</li>",
@@ -185,7 +235,8 @@ test("buildCalendarDescription includes clean agenda extraction from discussion 
       ],
     }),
     [
-      "<p><strong>MeetingFlow summary</strong></p>",
+      "<p><strong>MeetingFlow event brief</strong></p>",
+      "<p>Created from the Confluence meeting note. Use this brief to confirm goals, timing, attendees, and supporting links before the meeting starts.</p>",
       "<ul>",
       "<li><strong>Title:</strong> Launch planning</li>",
       "<li><strong>Date:</strong> 2026-07-08</li>",
@@ -233,7 +284,8 @@ test("buildCalendarDescription escapes hyperlink labels and URLs", () => {
       ],
     }),
     [
-      "<p><strong>MeetingFlow summary</strong></p>",
+      "<p><strong>MeetingFlow event brief</strong></p>",
+      "<p>Created from the Confluence meeting note. Use this brief to confirm goals, timing, attendees, and supporting links before the meeting starts.</p>",
       "<ul>",
       "<li><strong>Title:</strong> Launch &quot;plan&quot; &lt;draft&gt;</li>",
       "<li><strong>Date:</strong> 2026-07-08</li>",
@@ -260,7 +312,8 @@ test("buildCalendarDescriptionPreview shows a clean non-HTML summary", () => {
   assert.equal(
     buildCalendarDescriptionPreview(meetingData),
     [
-      "MeetingFlow summary",
+      "MeetingFlow event brief",
+      "Created from the Confluence meeting note.",
       "Title: Launch planning",
       "Date: 2026-07-08",
       "Time: 09:30 - 10:15",

@@ -82,9 +82,9 @@ permissions:
   external:
     fetch:
       backend:
-        - https://www.googleapis.com
-        - https://accounts.google.com
-        - https://oauth2.googleapis.com
+        - address: https://www.googleapis.com
+        - address: https://accounts.google.com
+        - address: https://oauth2.googleapis.com
   scopes:
     - read:confluence-content.summary
     - read:confluence-user

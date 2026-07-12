@@ -7,6 +7,7 @@ import {
 } from "@forge/react";
 
 export default function MeetingActions({
+                                           calendarEventStatus,
                                            isConfluenceLinkAvailable,
                                            onCreateCalendarEvent,
                                            onNotifySlack,
@@ -14,6 +15,12 @@ export default function MeetingActions({
                                            onOpenConfluence,
                                            pageUrl,
                                        }) {
+    const calendarActionLabel = calendarEventStatus?.hasCalendarEvent
+        ? calendarEventStatus.canDeleteCalendarEvent
+            ? "Update Calendar Event"
+            : "Calendar Event Linked"
+        : "Create Calendar Event";
+
     return (
         <Stack space="space.150">
 
@@ -37,7 +44,7 @@ export default function MeetingActions({
                     onClick={onCreateCalendarEvent}
                     shouldFitContainer
                 >
-                    Create Calendar Event
+                    {calendarActionLabel}
                 </Button>
 
 

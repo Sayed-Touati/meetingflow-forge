@@ -10,12 +10,18 @@ function createMeetingNoteIndexEntry(meetingNote) {
   // The date picker/dropdown UI only needs a lightweight summary list.
   // Keeping full page data out of the index prevents each dropdown load from
   // pulling large meeting sections, tables, and links that are not yet visible.
-  return {
+  const entry = {
     pageId: meetingNote.pageId,
     title: meetingNote.title,
     date: meetingNote.date,
     pageUrl: meetingNote.pageUrl,
   };
+
+  if (meetingNote.calendarEvent?.eventId) {
+    entry.hasCalendarEvent = true;
+  }
+
+  return entry;
 }
 
 function mergeMeetingNoteIndex(existingIndex, meetingNote) {
@@ -35,24 +41,45 @@ function removeMeetingNoteIndexEntry(existingIndex, pageId) {
 }
 
 export async function saveMeetingNoteRecord(kvsClient, meetingNote) {
-  await kvsClient.set(meetingNoteKey(meetingNote.pageId), meetingNote);
+  const existingMeetingNote = await getMeetingNoteRecord(kvsClient, meetingNote.pageId);
+  const meetingNoteToSave = {
+    ...meetingNote,
+    ...(!("calendarEvent" in meetingNote) && existingMeetingNote?.calendarEvent
+      ? { calendarEvent: existingMeetingNote.calendarEvent }
+      : {}),
+  };
+
+  await kvsClient.set(meetingNoteKey(meetingNoteToSave.pageId), meetingNoteToSave);
 
   const allIndexKey = meetingNoteIndexKey();
   const existingAllIndex = await kvsClient.get(allIndexKey);
 
   await kvsClient.set(
     allIndexKey,
-    mergeMeetingNoteIndex(existingAllIndex, meetingNote),
+    mergeMeetingNoteIndex(existingAllIndex, meetingNoteToSave),
   );
 
-  if (!meetingNote.date) {
+  if (existingMeetingNote?.date && existingMeetingNote.date !== meetingNoteToSave.date) {
+    const existingDateIndex = await kvsClient.get(
+      meetingNoteIndexKey(existingMeetingNote.date),
+    );
+    await kvsClient.set(
+      meetingNoteIndexKey(existingMeetingNote.date),
+      removeMeetingNoteIndexEntry(existingDateIndex, meetingNoteToSave.pageId),
+    );
+  }
+
+  if (!meetingNoteToSave.date) {
     return;
   }
 
-  const indexKey = meetingNoteIndexKey(meetingNote.date);
+  const indexKey = meetingNoteIndexKey(meetingNoteToSave.date);
   const existingIndex = await kvsClient.get(indexKey);
 
-  await kvsClient.set(indexKey, mergeMeetingNoteIndex(existingIndex, meetingNote));
+  await kvsClient.set(
+    indexKey,
+    mergeMeetingNoteIndex(existingIndex, meetingNoteToSave),
+  );
 }
 
 export async function removeMeetingNoteRecord(kvsClient, meetingNote) {
@@ -93,4 +120,93 @@ export async function getMeetingNoteRecord(kvsClient, pageId) {
   }
 
   return (await kvsClient.get(meetingNoteKey(pageId))) ?? null;
+}
+
+export async function addCalendarEventToMeetingNoteRecord(
+  kvsClient,
+  pageId,
+  calendarEvent,
+) {
+  const meetingNote = await getMeetingNoteRecord(kvsClient, pageId);
+
+  if (!meetingNote) {
+    return null;
+  }
+
+  const updatedMeetingNote = {
+    ...meetingNote,
+    calendarEvent: {
+      eventId: calendarEvent.eventId,
+      eventUrl: calendarEvent.eventUrl,
+      meetUrl: calendarEvent.meetUrl,
+      startDateTime: calendarEvent.startDateTime,
+      endDateTime: calendarEvent.endDateTime,
+      timeZone: calendarEvent.timeZone,
+    },
+  };
+
+  await saveMeetingNoteRecord(kvsClient, updatedMeetingNote);
+
+  return updatedMeetingNote;
+}
+
+export function createCalendarEventStatus(meetingNote, now = new Date()) {
+  const calendarEvent = meetingNote?.calendarEvent;
+
+  if (!calendarEvent?.eventId) {
+    return {
+      hasCalendarEvent: false,
+      canDeleteCalendarEvent: false,
+      calendarEvent: null,
+    };
+  }
+
+  const startTime = Date.parse(calendarEvent.startDateTime ?? "");
+
+  return {
+    hasCalendarEvent: true,
+    canDeleteCalendarEvent: Number.isFinite(startTime)
+      ? startTime > now.getTime()
+      : false,
+    calendarEvent,
+  };
+}
+
+export function createMeetingDeletionPlan(
+  meetingNote,
+  { deleteCalendarEvent = false } = {},
+  now = new Date(),
+) {
+  const calendarEventStatus = createCalendarEventStatus(meetingNote, now);
+
+  if (!deleteCalendarEvent) {
+    return {
+      canDeleteMeetingNote: true,
+      shouldDeleteCalendarEvent: false,
+      message: "",
+    };
+  }
+
+  if (!calendarEventStatus.hasCalendarEvent) {
+    return {
+      canDeleteMeetingNote: true,
+      shouldDeleteCalendarEvent: false,
+      message: "",
+    };
+  }
+
+  if (!calendarEventStatus.canDeleteCalendarEvent) {
+    return {
+      canDeleteMeetingNote: false,
+      shouldDeleteCalendarEvent: false,
+      message:
+        "The Google Calendar event has already started. Choose Delete note only to remove the Confluence meeting note.",
+    };
+  }
+
+  return {
+    canDeleteMeetingNote: true,
+    shouldDeleteCalendarEvent: true,
+    message: "",
+  };
 }

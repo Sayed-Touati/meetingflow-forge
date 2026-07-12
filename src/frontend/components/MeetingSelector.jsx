@@ -5,8 +5,10 @@ import {
     Heading,
     Inline,
     Label,
+    SectionMessage,
     Select,
     Stack,
+    Text,
 } from "@forge/react";
 
 
@@ -16,6 +18,8 @@ export default function MeetingSelector({
                                             onClearDate,
                                             onDateChange,
                                             onMeetingChange,
+                                            calendarStatusAppearance,
+                                            calendarStatusMessage,
                                             selectedDate,
                                             selectedMeetingOption,
                                         }) {
@@ -91,6 +95,12 @@ export default function MeetingSelector({
                 </Stack>
 
             </Inline>
+
+            {calendarStatusMessage ? (
+                <SectionMessage appearance={calendarStatusAppearance || "info"}>
+                    <Text>{calendarStatusMessage}</Text>
+                </SectionMessage>
+            ) : null}
 
         </Stack>
     );

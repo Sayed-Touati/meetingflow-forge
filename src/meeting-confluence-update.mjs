@@ -71,18 +71,20 @@ function relatedInfoSection(resources) {
   return `
     <h2>Related info</h2>
     ${normalizeList(resources)
-      .map((resource) => {
-        if (!resource?.url) {
-          return `<p>${escapeText(resource?.title)}</p>`;
-        }
-
-        const title = resource.title ? `${escapeText(resource.title)}: ` : "";
-        const linkText = escapeText(resource.linkText || "link");
-
-        return `<p>${title}<a href="${escapeText(resource.url)}">${linkText}</a></p>`;
-      })
+      .map(resourceParagraph)
       .join("")}
   `;
+}
+
+function resourceParagraph(resource) {
+  if (!resource?.url) {
+    return `<p>${escapeText(resource?.title)}</p>`;
+  }
+
+  const title = resource.title ? `${escapeText(resource.title)}: ` : "";
+  const linkText = escapeText(resource.linkText || "link");
+
+  return `<p>${title}<a href="${escapeText(resource.url)}">${linkText}</a></p>`;
 }
 
 const EDITABLE_SECTION_BUILDERS = [
@@ -121,6 +123,18 @@ function parseStorageFragment(value) {
     lowerCaseAttributeNames: false,
     lowerCaseTags: false,
     recognizeSelfClosing: true,
+    xmlMode: true,
+  });
+}
+
+function parseStorageFragmentWithIndices(value) {
+  return parseDocument(value, {
+    decodeEntities: false,
+    lowerCaseAttributeNames: false,
+    lowerCaseTags: false,
+    recognizeSelfClosing: true,
+    withEndIndices: true,
+    withStartIndices: true,
     xmlMode: true,
   });
 }
@@ -171,7 +185,7 @@ function findEditableSection(nodes, title) {
   const index = findEditableSectionIndex(nodes, title);
 
   if (index !== -1) {
-    return { index, nodes };
+    return { index, nodes, node: nodes[index] };
   }
 
   for (const node of nodes) {
@@ -237,6 +251,50 @@ function replaceSection(rootNodes, appendNodes, title, sectionHtml) {
   );
 }
 
+function getParentContentEndOffset(currentStorageValue, headingNode) {
+  const parentNode = headingNode?.parent;
+
+  if (!parentNode || parentNode.type === "root" || parentNode.endIndex == null) {
+    return currentStorageValue.length;
+  }
+
+  const closingTagIndex = currentStorageValue.lastIndexOf(
+    `</${parentNode.name}>`,
+    parentNode.endIndex,
+  );
+
+  return closingTagIndex === -1 ? parentNode.endIndex + 1 : closingTagIndex;
+}
+
+function findSectionContentEndOffset(currentStorageValue, section) {
+  const endIndex = findSectionEndIndex(section.nodes, section.index);
+  const nextSectionNode = section.nodes[endIndex];
+
+  if (nextSectionNode?.startIndex != null) {
+    return nextSectionNode.startIndex;
+  }
+
+  return getParentContentEndOffset(currentStorageValue, section.node);
+}
+
+function getGoogleMeetResource(resources = []) {
+  return normalizeList(resources).find(
+    (resource) =>
+      resource?.type === "google-meet" ||
+      String(resource?.url ?? "").includes("meet.google.com"),
+  );
+}
+
+function upsertGoogleMeetParagraph(sectionContent, googleMeetParagraph) {
+  const existingMeetParagraphPattern = /<p\b[^>]*>[\s\S]*?meet\.google\.com[\s\S]*?<\/p>/i;
+
+  if (existingMeetParagraphPattern.test(sectionContent)) {
+    return sectionContent.replace(existingMeetParagraphPattern, googleMeetParagraph);
+  }
+
+  return `${sectionContent}${googleMeetParagraph}`;
+}
+
 function getPageTitle(meetingData, currentPage) {
   return meetingData.title?.trim() || currentPage.title || "Untitled meeting note";
 }
@@ -263,6 +321,42 @@ export function updateMeetingNoteStorageValue(currentStorageValue, meetingData) 
   }
 
   return serializeStorageNodes(nodes);
+}
+
+export function updateMeetingNoteRelatedInfoStorageValue(
+  currentStorageValue,
+  meetingData,
+) {
+  const document = parseStorageFragmentWithIndices(currentStorageValue || "");
+  const nodes = document.children;
+  const section = findEditableSection(nodes, "Related info");
+  const googleMeetResource = getGoogleMeetResource(meetingData.resources);
+
+  if (!googleMeetResource) {
+    return currentStorageValue || "";
+  }
+
+  const googleMeetParagraph = resourceParagraph(googleMeetResource);
+
+  if (!section) {
+    return `${currentStorageValue || ""}${relatedInfoSection([googleMeetResource])}`;
+  }
+
+  const contentStartOffset = section.node.endIndex + 1;
+  const contentEndOffset = findSectionContentEndOffset(
+    currentStorageValue,
+    section,
+  );
+  const currentSectionContent = currentStorageValue.slice(
+    contentStartOffset,
+    contentEndOffset,
+  );
+  const replacementContentHtml = upsertGoogleMeetParagraph(
+    currentSectionContent,
+    googleMeetParagraph,
+  );
+
+  return `${currentStorageValue.slice(0, contentStartOffset)}${replacementContentHtml}${currentStorageValue.slice(contentEndOffset)}`;
 }
 
 async function readJsonResponse(response, description) {
@@ -309,6 +403,46 @@ export async function updateConfluenceMeetingNotePage({
     version: {
       number: nextVersionNumber,
       message: "Updated from MeetingFlow",
+    },
+  });
+
+  await readJsonResponse(updateResponse, `update Confluence page ${meetingData.pageId}`);
+
+  return {
+    ...meetingData,
+    title,
+  };
+}
+
+export async function updateConfluenceMeetingNoteRelatedInfoPage({
+  fetchPage,
+  meetingData,
+  updatePage,
+}) {
+  const currentPageResponse = await fetchPage(meetingData.pageId);
+  const currentPage = await readJsonResponse(
+    currentPageResponse,
+    `fetch Confluence page ${meetingData.pageId}`,
+  );
+  const nextVersionNumber = (currentPage.version?.number ?? 1) + 1;
+  const bodyValue = updateMeetingNoteRelatedInfoStorageValue(
+    currentPage.body?.storage?.value || "",
+    meetingData,
+  );
+  const title = currentPage.title || getPageTitle(meetingData, currentPage);
+
+  const updateResponse = await updatePage(meetingData.pageId, {
+    id: meetingData.pageId,
+    status: "current",
+    title,
+    ...(currentPage.spaceId ? { spaceId: currentPage.spaceId } : {}),
+    body: {
+      representation: "storage",
+      value: bodyValue,
+    },
+    version: {
+      number: nextVersionNumber,
+      message: "Updated Related info from MeetingFlow",
     },
   });
 

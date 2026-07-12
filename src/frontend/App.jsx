@@ -15,6 +15,7 @@ import {
     createCalendarEventDraft,
     validateCalendarEventDraft,
 } from "../calendar-event-form.mjs";
+import { createCalendarEventStatus } from "../meeting-storage.mjs";
 import AutomationSettingsDrawer from "./components/AutomationSettingsDrawer";
 import AppHeader from "./components/AppHeader";
 import CreateCalendarEventModal from "./components/CreateCalendarEventModal";
@@ -87,6 +88,7 @@ export default function App() {
     const [isDetailsVisible, setIsDetailsVisible] = useState(true);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
+    const [calendarModalMode, setCalendarModalMode] = useState("create");
     const [calendarEventDraft, setCalendarEventDraft] = useState(null);
     const [calendarFieldErrors, setCalendarFieldErrors] = useState({});
     const [calendarGuestErrors, setCalendarGuestErrors] = useState({});
@@ -106,10 +108,18 @@ export default function App() {
     const meetingOptions = useMemo(
         () =>
             meetingSummaries.map((meeting) => ({
-                label: meeting.title || "Untitled meeting note",
+                label: `${meeting.title || "Untitled meeting note"}${
+                    meeting.hasCalendarEvent ? " - Calendar linked" : ""
+                }`,
                 value: meeting.pageId,
             })),
         [meetingSummaries],
+    );
+    const selectedMeetingSummary = useMemo(
+        () =>
+            meetingSummaries.find((meeting) => meeting.pageId === selectedMeetingId) ??
+            null,
+        [meetingSummaries, selectedMeetingId],
     );
     const selectedMeetingOption = useMemo(
         () =>
@@ -181,11 +191,41 @@ export default function App() {
     };
 
     const openCalendarEventModal = () => {
+        const calendarEventStatus = createCalendarEventStatus(displayedMeetingData);
+
+        if (calendarEventStatus.hasCalendarEvent) {
+            if (!calendarEventStatus.canDeleteCalendarEvent) {
+                showCalendarMessage(
+                    "This meeting note already has a Google Calendar event linked. Because the event has already started, MeetingFlow will not create another event or update it.",
+                    "warning",
+                );
+                return;
+            }
+
+            setCalendarEventDraft(
+                createCalendarEventDraft(displayedMeetingData, { mode: "update" }),
+            );
+            setCalendarFieldErrors({});
+            setCalendarGuestErrors({});
+            setCalendarErrorMessage("");
+            setCalendarModalMode("update");
+            showCalendarMessage(
+                "This meeting note already has a Google Calendar event linked. Opening update mode so this note keeps one calendar event.",
+                "warning",
+            );
+            setIsCalendarModalOpen(true);
+            return;
+        }
+
         setCalendarEventDraft(createCalendarEventDraft(displayedMeetingData));
         setCalendarFieldErrors({});
         setCalendarGuestErrors({});
         setCalendarErrorMessage("");
-        clearCalendarMessage();
+        setCalendarModalMode("create");
+        showCalendarMessage(
+            "No Google Calendar event is linked to this meeting note yet.",
+            "info",
+        );
         setIsCalendarModalOpen(true);
     };
 
@@ -267,13 +307,31 @@ export default function App() {
         setIsCreatingCalendarEvent(true);
 
         try {
-            const result = await invoke("createGoogleCalendarEvent", {
+            const resolverName =
+                calendarModalMode === "update"
+                    ? "updateGoogleCalendarEvent"
+                    : "createGoogleCalendarEvent";
+            const result = await invoke(resolverName, {
                 meetingData: displayedMeetingData,
                 calendarDraft: calendarEventDraft,
                 timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
             });
 
             if (!result?.success) {
+                if (result?.type === "duplicate-calendar-event") {
+                    const savedMeetingData = result.meetingData ?? displayedMeetingData;
+
+                    setSelectedMeetingData(savedMeetingData);
+                    setEditableMeetingData(savedMeetingData);
+                    showCalendarMessage(
+                        result.message ||
+                            "This meeting note already has a Google Calendar event linked.",
+                        "warning",
+                    );
+                    setIsCalendarModalOpen(false);
+                    return;
+                }
+
                 if (result?.validation) {
                     setCalendarFieldErrors(result.validation.fieldErrors ?? {});
                     setCalendarGuestErrors(result.validation.guestErrors ?? {});
@@ -290,8 +348,26 @@ export default function App() {
 
             setSelectedMeetingData(savedMeetingData);
             setEditableMeetingData(savedMeetingData);
+            setMeetingSummaries((currentSummaries) =>
+                currentSummaries.map((meeting) =>
+                    meeting.pageId === savedMeetingData.pageId
+                        ? {
+                              ...meeting,
+                              title: savedMeetingData.title,
+                              date: savedMeetingData.date,
+                              pageUrl: savedMeetingData.pageUrl,
+                              hasCalendarEvent: Boolean(
+                                  savedMeetingData.calendarEvent?.eventId,
+                              ),
+                          }
+                        : meeting,
+                ),
+            );
             showCalendarMessage(
-                result.message || "Calendar event created.",
+                result.message ||
+                    (calendarModalMode === "update"
+                        ? "Linked Google Calendar event updated."
+                        : "Calendar event created."),
                 result.partialSuccess ? "warning" : "success",
             );
             setIsCalendarModalOpen(false);
@@ -357,6 +433,9 @@ export default function App() {
                               title: refreshedMeetingData.title,
                               date: refreshedMeetingData.date,
                               pageUrl: refreshedMeetingData.pageUrl,
+                              hasCalendarEvent: Boolean(
+                                  refreshedMeetingData.calendarEvent?.eventId,
+                              ),
                           }
                         : meeting,
                 ),
@@ -372,20 +451,45 @@ export default function App() {
         }
     };
 
-    const removeSelectedMeeting = async (operation) => {
+    const openDeleteMeetingModal = () => {
+        const calendarEventStatus = createCalendarEventStatus(displayedMeetingData);
+
+        if (calendarEventStatus.canDeleteCalendarEvent) {
+            showCalendarMessage(
+                "This meeting has a future Google Calendar event. Choose whether to delete only the note or delete the Calendar event too.",
+                "warning",
+            );
+        }
+
+        setIsDeleteModalOpen(true);
+    };
+
+    const removeSelectedMeeting = async (operation, options = {}) => {
         const resolverName =
             operation === "archive" ? "archiveMeetingNote" : "deleteMeetingNote";
         const successMessage =
             operation === "archive"
                 ? "Meeting note archived in Confluence and removed from MeetingFlow."
-                : "Meeting note deleted in Confluence and removed from MeetingFlow.";
+                : options.deleteCalendarEvent
+                  ? "Meeting note and Google Calendar event deleted."
+                  : "Meeting note deleted in Confluence and removed from MeetingFlow.";
 
         setIsRemovingMeeting(true);
 
         try {
             const result = await invoke(resolverName, {
                 meetingData: displayedMeetingData,
+                deleteCalendarEvent: Boolean(options.deleteCalendarEvent),
             });
+
+            if (result?.success === false) {
+                showCalendarMessage(
+                    result.message ||
+                        "MeetingFlow could not complete this deletion. Please try again.",
+                    "warning",
+                );
+                return;
+            }
 
             clearRemovedMeeting(result?.pageId ?? displayedMeetingData.pageId);
             showCalendarMessage(successMessage, "success");
@@ -487,6 +591,18 @@ export default function App() {
 
     const displayedMeetingData = editableMeetingData ?? selectedMeetingData;
     const hasSelectedMeeting = Boolean(displayedMeetingData);
+    const calendarEventStatus = createCalendarEventStatus(displayedMeetingData);
+    const selectedMeetingHasCalendarEvent = hasSelectedMeeting
+        ? calendarEventStatus.hasCalendarEvent
+        : Boolean(selectedMeetingSummary?.hasCalendarEvent);
+    const selectedMeetingCalendarMessage = selectedMeetingId
+        ? selectedMeetingHasCalendarEvent
+            ? "This selected meeting note has a Google Calendar event linked."
+            : "This selected meeting note does not have a Google Calendar event linked yet."
+        : "";
+    const selectedMeetingCalendarAppearance = selectedMeetingHasCalendarEvent
+        ? "success"
+        : "info";
     const googleCalendarAutomationStatus =
         displayedMeetingData?.automation?.googleCalendar;
     const shouldShowGoogleCalendarAutomationStatus =
@@ -503,6 +619,8 @@ export default function App() {
 
             <MeetingSelector
                 isLoadingMeetings={isLoadingMeetings}
+                calendarStatusAppearance={selectedMeetingCalendarAppearance}
+                calendarStatusMessage={selectedMeetingCalendarMessage}
                 meetingOptions={meetingOptions}
                 onClearDate={clearDateFilter}
                 onDateChange={handleDateChange}
@@ -538,13 +656,14 @@ export default function App() {
 
             {hasSelectedMeeting ? (
                 <MeetingDetailsSection
+                    calendarEventStatus={calendarEventStatus}
                     calendarMessage={calendarMessage}
                     calendarMessageAppearance={calendarMessageAppearance}
                     isDetailsVisible={isDetailsVisible}
                     isRefreshing={isRefreshingMeeting}
                     meetingData={displayedMeetingData}
                     onCreateCalendarEvent={openCalendarEventModal}
-                    onDelete={() => setIsDeleteModalOpen(true)}
+                    onDelete={openDeleteMeetingModal}
                     onEditInConfluence={openSelectedMeetingInConfluenceEditor}
                     onOpenConfluence={openSelectedMeetingInConfluence}
                     onRefresh={refreshSelectedMeetingDetails}
@@ -591,10 +710,15 @@ export default function App() {
             {hasSelectedMeeting && isDeleteModalOpen ? (
                 <DeleteMeetingModal
                     isRemoving={isRemovingMeeting}
+                    canDeleteCalendarEvent={calendarEventStatus.canDeleteCalendarEvent}
                     meetingTitle={displayedMeetingData.title}
-                    onArchive={() => removeSelectedMeeting("archive")}
                     onCancel={() => setIsDeleteModalOpen(false)}
                     onDelete={() => removeSelectedMeeting("delete")}
+                    onDeleteCalendarEvent={() =>
+                        removeSelectedMeeting("delete", {
+                            deleteCalendarEvent: true,
+                        })
+                    }
                 />
             ) : null}
 
@@ -606,6 +730,7 @@ export default function App() {
                     guestErrors={calendarGuestErrors}
                     isCreating={isCreatingCalendarEvent}
                     meetingData={displayedMeetingData}
+                    mode={calendarModalMode}
                     onAddGuest={addCalendarGuest}
                     onCancel={() => setIsCalendarModalOpen(false)}
                     onCreate={createCalendarEvent}

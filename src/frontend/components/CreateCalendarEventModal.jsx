@@ -81,7 +81,12 @@ function GuestTable({
         <Stack space="space.100">
             <Inline alignBlock="center" spread="space-between">
                 <Text weight="bold">Guests</Text>
-                <Button appearance="subtle" onClick={onAddGuest}>
+                <Button
+                    appearance="subtle"
+                    icon="add"
+                    iconPosition="before"
+                    onClick={onAddGuest}
+                >
                     Add guest
                 </Button>
             </Inline>
@@ -137,6 +142,8 @@ function GuestTable({
                             ) : (
                                 <Button
                                     appearance="subtle"
+                                    icon="trash"
+                                    iconPosition="before"
                                     onClick={() => onRemoveGuest(index)}
                                 >
                                     Remove
@@ -157,6 +164,7 @@ export default function CreateCalendarEventModal({
     guestErrors,
     isCreating,
     meetingData,
+    mode = "create",
     onAddGuest,
     onCancel,
     onCreate,
@@ -165,9 +173,14 @@ export default function CreateCalendarEventModal({
     onUpdateGuest,
 }) {
     const description = buildCalendarDescriptionPreview(meetingData);
+    const isUpdateMode = mode === "update";
 
     return (
-        <Modal onClose={onCancel} title="Create calendar event" width="x-large">
+        <Modal
+            onClose={onCancel}
+            title={isUpdateMode ? "Update calendar event" : "Create calendar event"}
+            width="x-large"
+        >
             <ModalBody>
                 <Stack space="space.250">
                     {calendarErrorMessage ? (
@@ -298,11 +311,24 @@ export default function CreateCalendarEventModal({
             </ModalBody>
 
             <ModalFooter>
-                <Button appearance="subtle" onClick={onCancel}>
+                <Button
+                    appearance="subtle"
+                    icon="cross"
+                    iconPosition="before"
+                    onClick={onCancel}
+                >
                     Cancel
                 </Button>
-                <Button appearance="primary" disabled={isCreating} onClick={onCreate}>
-                    {isCreating ? "Creating..." : "Create"}
+                <Button
+                    appearance="primary"
+                    disabled={isCreating}
+                    icon="calendar"
+                    iconPosition="before"
+                    onClick={onCreate}
+                >
+                    {isCreating
+                        ? isUpdateMode ? "Updating..." : "Creating..."
+                        : isUpdateMode ? "Update event" : "Create"}
                 </Button>
             </ModalFooter>
         </Modal>
