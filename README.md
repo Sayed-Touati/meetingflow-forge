@@ -304,16 +304,30 @@ This path runs when users interact with the MeetingFlow UI. It powers note listi
 
 ## Installation
 
+This section is written for a developer who wants to clone the repository, configure their own Forge app installation, connect Google Calendar, and try MeetingFlow on a Confluence Cloud site.
+
 ### Prerequisites
 
 Before installing MeetingFlow, make sure you have:
 
+- An Atlassian account.
 - An Atlassian Cloud site with Confluence enabled.
-- Permission to install Forge apps on that Atlassian site.
-- A Google Cloud project for OAuth configuration.
-- Node.js installed locally.
-- npm installed locally.
-- Atlassian Forge CLI installed globally.
+- Permission to install development Forge apps on that Atlassian site.
+- A Google account that can create or edit a Google Cloud project.
+- Node.js 22.x and npm installed locally.
+- Atlassian Forge CLI installed locally.
+- Git installed locally.
+
+Useful links:
+
+- Node.js downloads: https://nodejs.org/en/download
+- Atlassian Forge getting started: https://developer.atlassian.com/platform/forge/getting-started/
+- Forge CLI reference: https://developer.atlassian.com/platform/forge/cli-reference/
+- Atlassian API tokens: https://id.atlassian.com/manage-profile/security/api-tokens
+- Google Cloud Console: https://console.cloud.google.com/
+- Google Calendar API: https://console.cloud.google.com/apis/library/calendar-json.googleapis.com
+- Google OAuth consent screen: https://console.cloud.google.com/auth/overview
+- Google OAuth clients: https://console.cloud.google.com/auth/clients
 
 Check your local Node.js and npm versions:
 
@@ -324,10 +338,10 @@ npm -v
 
 MeetingFlow runs on the Forge `nodejs22.x` runtime, so Node.js 22 is recommended for local development.
 
-Install the Forge CLI if needed:
+Install or update the Forge CLI:
 
 ```powershell
-npm install -g @forge/cli
+npm install -g @forge/cli@latest
 ```
 
 Confirm the Forge CLI is available:
@@ -336,11 +350,13 @@ Confirm the Forge CLI is available:
 forge --version
 ```
 
-Log in to Atlassian Forge:
+Log in to Atlassian Forge. The Forge CLI uses your Atlassian email and an Atlassian API token:
 
 ```powershell
 forge login
 ```
+
+If you do not already have a Confluence test site, create an Atlassian developer site from the Forge getting started guide before installing the app.
 
 ### Local Setup
 
@@ -364,6 +380,23 @@ npm test
 npm run lint
 forge lint
 ```
+
+### Quick Start Checklist
+
+For a fresh setup, the full flow is:
+
+1. Install Node.js 22.x.
+2. Install the Forge CLI.
+3. Run `forge login`.
+4. Clone this repository.
+5. Run `npm install`.
+6. Configure Google OAuth in Google Cloud.
+7. Update `manifest.yml` with your Google OAuth client ID if you are using your own Google project.
+8. Store the Google OAuth client secret with `forge providers configure`.
+9. Run `npm test`, `npm run lint`, and `forge lint`.
+10. Run `forge deploy --non-interactive --e development`.
+11. Run `forge install --non-interactive --site <site-url> --product confluence --environment development`.
+12. Open Confluence, create or update a Meeting Notes page, then open the MeetingFlow global page.
 
 ### Deploy To Forge Development
 
@@ -465,16 +498,19 @@ https://oauth2.googleapis.com/revoke
 
 MeetingFlow uses Google OAuth through Forge external auth. To try the Google Calendar workflow with your own Google Cloud project:
 
-1. Open the Google Cloud Console.
-2. Create or select a Google Cloud project.
-3. Enable the Google Calendar API for that project.
-4. Configure the OAuth consent screen.
-5. Create an OAuth 2.0 Client ID for a web application.
-6. Add the Forge callback URL required by Atlassian Forge external auth.
-7. Copy the OAuth client ID into `manifest.yml` under `providers.auth.clientId`.
-8. Store the OAuth client secret using the Forge provider secret command.
-9. Deploy the app again.
-10. Install or upgrade the app on your Confluence site.
+1. Open the Google Cloud Console: https://console.cloud.google.com/
+2. Create a new project or select an existing project.
+3. Enable the Google Calendar API: https://console.cloud.google.com/apis/library/calendar-json.googleapis.com
+4. Open the Google Auth platform setup: https://console.cloud.google.com/auth/overview
+5. Configure the OAuth consent screen with an app name, support email, and developer contact email.
+6. Add the Google Calendar event scope listed below to the app's OAuth data access configuration.
+7. Open OAuth clients: https://console.cloud.google.com/auth/clients
+8. Create an OAuth client with application type `Web application`.
+9. Add the callback URL required by Forge external authentication as an authorized redirect URI. Use the Forge external authentication docs while configuring this value: https://developer.atlassian.com/platform/forge/use-an-external-oauth-2.0-api-with-fetch/
+10. Copy the OAuth client ID into `manifest.yml` under `providers.auth.clientId`.
+11. Store the OAuth client secret with the Forge CLI.
+12. Deploy the app again.
+13. Install or upgrade the app on your Confluence site.
 
 The app currently requests this Google Calendar scope:
 
@@ -484,10 +520,24 @@ https://www.googleapis.com/auth/calendar.events
 
 The OAuth client ID is not a secret, but the OAuth client secret must not be committed to the repository. Store it with Forge secret management instead.
 
-Use Forge CLI help to confirm the exact provider command syntax for your installed Forge CLI version:
+Configure the Google provider secret for the development environment:
 
 ```powershell
-forge providers --help
+forge providers configure google --environment development
+```
+
+The CLI will prompt for the OAuth client secret.
+
+You can also pass the secret directly when needed, for example in a controlled local shell:
+
+```powershell
+forge providers configure google --environment development --oauth-client-secret <google-oauth-client-secret>
+```
+
+After configuration, confirm your local Forge CLI command options if needed:
+
+```powershell
+forge providers configure --help
 ```
 
 After changing Google provider configuration in `manifest.yml`, redeploy and upgrade the installation:
@@ -510,13 +560,23 @@ meeting-note-index:<YYYY-MM-DD>
 
 ## Usage
 
+This section assumes the app has already been deployed and installed on a Confluence Cloud site.
+
 ### Index Meeting Notes
 
 Create or update an Atlassian Meeting Notes page in Confluence. MeetingFlow receives the Confluence page event, verifies the page template, parses the page content, and stores the meeting record in Forge KVS.
 
+If no notes appear immediately, edit and publish a Meeting Notes page once, then check recent logs:
+
+```powershell
+forge logs -e development --since 15m
+```
+
 ### Open MeetingFlow
 
-Open the MeetingFlow global page in Confluence. The app loads indexed meeting notes and refreshes recent Confluence Meeting Notes through the resolver-backed sync flow.
+Open the MeetingFlow global page in Confluence. The page is registered as a Confluence global page with the title `MeetingFlow` and route `meetingflow`.
+
+The app loads indexed meeting notes and refreshes recent Confluence Meeting Notes through the resolver-backed sync flow.
 
 ### Filter And Select A Meeting
 
@@ -546,6 +606,8 @@ The modal lets users review and edit:
 - Calendar description preview
 
 After creation, MeetingFlow stores the Google event metadata and, when a Meet link is returned, attempts to update the Confluence meeting note related info section.
+
+The first time a user creates or updates a calendar event, Forge may ask them to connect Google Calendar through the configured Google OAuth provider.
 
 ### Update A Linked Calendar Event
 
