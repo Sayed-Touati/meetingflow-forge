@@ -10,21 +10,33 @@ It indexes Confluence meeting notes, extracts useful meeting data, gives users a
 
 ![MeetingFlow empty meeting selection](docs/screenshots/meetingflow-empty-selection.png)
 
+### Meeting Note Dropdown
+
+![MeetingFlow meeting note dropdown after date filtering](docs/screenshots/meetingflow-date-filter-dropdown.png)
+
 ### No Notes For Selected Date
 
 ![MeetingFlow no notes for selected date](docs/screenshots/meetingflow-no-notes-for-date.png)
 
-### Meeting note Details Part 1/2
+### Meeting Note Details Part 1/2
 
 ![MeetingFlow selected meeting overview](docs/screenshots/meetingflow-selected-note-overview.png)
 
-### Meeting note Details Part 2/2
+### Meeting Note Details Part 2/2
 
 ![MeetingFlow meeting details sections](docs/screenshots/meetingflow-note-details-sections.png)
 
 ### Create Calendar Event Part 1/2
 
 ![Create calendar event fields](docs/screenshots/calendar-event-modal-fields.png)
+
+### Create Calendar Event Part 2/2
+
+![Create calendar event guests and description preview](docs/screenshots/calendar-event-modal-guests-preview.png)
+
+### Automation Settings
+
+![Automation settings modal](docs/screenshots/automation-settings-modal.png)
 
 ### Delete Meeting Note
 
@@ -215,6 +227,17 @@ This path runs when users interact with the MeetingFlow UI. It powers note listi
 |   |-- milestone_7.md
 |   |-- milestone_8.md
 |   |-- milestone_9.md
+|   |-- screenshots/
+|   |   |-- automation-settings-modal.png
+|   |   |-- calendar-event-modal-fields.png
+|   |   |-- calendar-event-modal-guests-preview.png
+|   |   |-- delete-meeting-note-modal.png
+|   |   |-- meetingflow-date-filter-dropdown.png
+|   |   |-- meetingflow-empty-selection.png
+|   |   |-- meetingflow-linked-calendar-event.png
+|   |   |-- meetingflow-no-notes-for-date.png
+|   |   |-- meetingflow-note-details-sections.png
+|   |   `-- meetingflow-selected-note-overview.png
 |   `-- superpowers/
 |       `-- specs/
 |           `-- 2026-07-07-google-calendar-event-design.md
@@ -261,6 +284,7 @@ This path runs when users interact with the MeetingFlow UI. It powers note listi
 |   `-- message-timing.test.mjs
 |-- AGENTS.md
 |-- MeetingFlow_Project.md
+|-- LICENSE
 |-- manifest.yml
 |-- package.json
 |-- package-lock.json
@@ -280,13 +304,60 @@ This path runs when users interact with the MeetingFlow UI. It powers note listi
 
 ## Installation
 
+### Prerequisites
+
+Before installing MeetingFlow, make sure you have:
+
+- An Atlassian Cloud site with Confluence enabled.
+- Permission to install Forge apps on that Atlassian site.
+- A Google Cloud project for OAuth configuration.
+- Node.js installed locally.
+- npm installed locally.
+- Atlassian Forge CLI installed globally.
+
+Check your local Node.js and npm versions:
+
+```powershell
+node -v
+npm -v
+```
+
+MeetingFlow runs on the Forge `nodejs22.x` runtime, so Node.js 22 is recommended for local development.
+
+Install the Forge CLI if needed:
+
+```powershell
+npm install -g @forge/cli
+```
+
+Confirm the Forge CLI is available:
+
+```powershell
+forge --version
+```
+
+Log in to Atlassian Forge:
+
+```powershell
+forge login
+```
+
+### Local Setup
+
+Clone the repository:
+
+```powershell
+git clone https://github.com/Sayed-Touati/meetingflow-forge.git
+cd meetingflow-forge/MeetingFlow
+```
+
 Install project dependencies:
 
 ```powershell
 npm install
 ```
 
-Validate the app:
+Run the local validation checks:
 
 ```powershell
 npm test
@@ -294,16 +365,24 @@ npm run lint
 forge lint
 ```
 
+### Deploy To Forge Development
+
 Deploy to the Forge development environment:
 
 ```powershell
 forge deploy --non-interactive --e development
 ```
 
-Install the app on a Confluence site:
+Install the app on your Confluence site:
 
 ```powershell
 forge install --non-interactive --site <site-url> --product confluence --environment development
+```
+
+Replace `<site-url>` with your Atlassian site URL, for example:
+
+```text
+https://your-site.atlassian.net
 ```
 
 Upgrade an existing installation after changing scopes, modules, providers, or egress permissions:
@@ -317,6 +396,20 @@ View recent development logs:
 ```powershell
 forge logs -e development --since 15m
 ```
+
+### Development Loop
+
+Use this loop for everyday changes:
+
+```powershell
+npm test
+npm run lint
+forge lint
+forge deploy --non-interactive --e development
+forge logs -e development --since 15m
+```
+
+If only frontend or resolver code changed and you are using a Forge tunnel, restart/deploy only when the manifest changes.
 
 ## Configuration
 
@@ -366,6 +459,42 @@ OAuth endpoints:
 https://accounts.google.com/o/oauth2/v2/auth
 https://oauth2.googleapis.com/token
 https://oauth2.googleapis.com/revoke
+```
+
+### Google Cloud OAuth Setup
+
+MeetingFlow uses Google OAuth through Forge external auth. To try the Google Calendar workflow with your own Google Cloud project:
+
+1. Open the Google Cloud Console.
+2. Create or select a Google Cloud project.
+3. Enable the Google Calendar API for that project.
+4. Configure the OAuth consent screen.
+5. Create an OAuth 2.0 Client ID for a web application.
+6. Add the Forge callback URL required by Atlassian Forge external auth.
+7. Copy the OAuth client ID into `manifest.yml` under `providers.auth.clientId`.
+8. Store the OAuth client secret using the Forge provider secret command.
+9. Deploy the app again.
+10. Install or upgrade the app on your Confluence site.
+
+The app currently requests this Google Calendar scope:
+
+```text
+https://www.googleapis.com/auth/calendar.events
+```
+
+The OAuth client ID is not a secret, but the OAuth client secret must not be committed to the repository. Store it with Forge secret management instead.
+
+Use Forge CLI help to confirm the exact provider command syntax for your installed Forge CLI version:
+
+```powershell
+forge providers --help
+```
+
+After changing Google provider configuration in `manifest.yml`, redeploy and upgrade the installation:
+
+```powershell
+forge deploy --non-interactive --e development
+forge install --non-interactive --upgrade --site <site-url> --product confluence --environment development
 ```
 
 ### Forge KVS Keys
@@ -519,7 +648,7 @@ Development guidelines:
 
 ## License
 
-MIT. See the `license` field in `package.json`.
+MeetingFlow uses the MIT license declared in `package.json`.
 
 ## Author
 
