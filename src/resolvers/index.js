@@ -18,7 +18,7 @@ import {
 import {
   refreshMeetingNoteFromConfluence,
   syncMeetingNotesFromConfluence,
-} from "../meeting-note-sync.mjs";
+} from "../features/meeting-notes/meeting-note-sync.mjs";
 import {
   updateConfluenceMeetingNoteRelatedInfoPage,
 } from "../meeting-confluence-update.mjs";
