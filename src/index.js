@@ -3,7 +3,7 @@ import { kvs } from "@forge/kvs";
 import {
   createGoogleCalendarAutomationStatus,
   getAutomationSettings,
-} from "./automation-settings.mjs";
+} from "./features/automation/automation-settings.mjs";
 import { parseMeetingNotePage } from "./meeting-parser.mjs";
 import { resolveParticipantDisplayNames } from "./participant-resolver.mjs";
 import { saveMeetingNoteRecord } from "./meeting-storage.mjs";

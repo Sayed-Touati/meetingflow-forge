@@ -10,7 +10,7 @@ import { invoke, router } from "@forge/bridge";
 import {
     AUTOMATION_DEFAULT_SETTINGS,
     createAutomationSettingsDraft,
-} from "../automation-settings.mjs";
+} from "../features/automation/automation-settings.mjs";
 import {
     createCalendarEventDraft,
     validateCalendarEventDraft,

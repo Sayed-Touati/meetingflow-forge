@@ -7,7 +7,7 @@ import {
   createAutomationSettingsDraft,
   getAutomationSettings,
   saveAutomationSettings,
-} from "../src/automation-settings.mjs";
+} from "../src/features/automation/automation-settings.mjs";
 
 function createMemoryKvs(initialValues = {}) {
   const values = new Map(Object.entries(initialValues));

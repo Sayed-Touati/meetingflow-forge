@@ -10,7 +10,7 @@ import {
   createGoogleCalendarAutomationStatus,
   getAutomationSettings,
   saveAutomationSettings,
-} from "../automation-settings.mjs";
+} from "../features/automation/automation-settings.mjs";
 import {
   buildGoogleCalendarEventBody,
   extractGoogleCalendarEventLinks,
