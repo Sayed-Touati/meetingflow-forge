@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { parseMeetingNotePage } from "../src/meeting-parser.mjs";
+import { parseMeetingNotePage } from "../src/features/meeting-notes/meeting-parser.mjs";
 
 test("parseMeetingNotePage returns structured meeting fields from Confluence storage", () => {
   const page = {
