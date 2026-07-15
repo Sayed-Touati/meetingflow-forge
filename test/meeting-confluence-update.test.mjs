@@ -7,7 +7,7 @@ import {
   updateMeetingNoteStorageValue,
   updateMeetingNoteRelatedInfoStorageValue,
   updateConfluenceMeetingNotePage,
-} from "../src/meeting-confluence-update.mjs";
+} from "../src/features/confluence/meeting-confluence-update.mjs";
 
 const editedMeetingData = {
   pageId: "12345",

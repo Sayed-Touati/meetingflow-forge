@@ -21,11 +21,11 @@ import {
 } from "../features/meeting-notes/meeting-note-sync.mjs";
 import {
   updateConfluenceMeetingNoteRelatedInfoPage,
-} from "../meeting-confluence-update.mjs";
+} from "../features/confluence/meeting-confluence-update.mjs";
 import {
   archiveConfluenceMeetingNotePage,
   deleteConfluenceMeetingNotePage,
-} from "../meeting-confluence-removal.mjs";
+} from "../features/confluence/meeting-confluence-removal.mjs";
 import {
   addCalendarEventToMeetingNoteRecord,
   createCalendarEventStatus,
