@@ -3,7 +3,7 @@ export const AUTOMATION_DEFAULT_SETTINGS = {
   autoNotifySlack: true,
 };
 
-export const AUTOMATION_SETTINGS_KEY = "automation-settings";
+const AUTOMATION_SETTINGS_KEY = "automation-settings";
 
 export function createAutomationSettingsDraft(settings = {}) {
   return {
