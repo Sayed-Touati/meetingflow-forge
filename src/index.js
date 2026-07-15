@@ -6,7 +6,7 @@ import {
 } from "./features/automation/automation-settings.mjs";
 import { parseMeetingNotePage } from "./meeting-parser.mjs";
 import { resolveParticipantDisplayNames } from "./participant-resolver.mjs";
-import { saveMeetingNoteRecord } from "./meeting-storage.mjs";
+import { saveMeetingNoteRecord } from "./features/meeting-notes/meeting-storage.mjs";
 import { MEETING_NOTES_TEMPLATE_ID } from "./meeting-notes-template.mjs";
 
 export async function handlePageEvent(event, context) {

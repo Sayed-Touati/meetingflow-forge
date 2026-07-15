@@ -34,7 +34,7 @@ import {
   listMeetingNotesForDate,
   removeMeetingNoteRecord,
   saveMeetingNoteRecord,
-} from "../meeting-storage.mjs";
+} from "../features/meeting-notes/meeting-storage.mjs";
 
 const resolver = new Resolver();
 const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";

@@ -15,7 +15,7 @@ import {
     createCalendarEventDraft,
     validateCalendarEventDraft,
 } from "../features/calendar/calendar-event-form.mjs";
-import { createCalendarEventStatus } from "../meeting-storage.mjs";
+import { createCalendarEventStatus } from "../features/meeting-notes/meeting-storage.mjs";
 import AutomationSettingsDrawer from "./components/AutomationSettingsDrawer";
 import AppHeader from "./components/AppHeader";
 import CreateCalendarEventModal from "./components/CreateCalendarEventModal";
