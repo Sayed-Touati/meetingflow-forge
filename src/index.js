@@ -5,7 +5,7 @@ import {
   getAutomationSettings,
 } from "./features/automation/automation-settings.mjs";
 import { parseMeetingNotePage } from "./features/meeting-notes/meeting-parser.mjs";
-import { resolveParticipantDisplayNames } from "./participant-resolver.mjs";
+import { resolveParticipantDisplayNames } from "./features/meeting-notes/participant-resolver.mjs";
 import { saveMeetingNoteRecord } from "./features/meeting-notes/meeting-storage.mjs";
 import { MEETING_NOTES_TEMPLATE_ID } from "./features/meeting-notes/constants.mjs";
 
