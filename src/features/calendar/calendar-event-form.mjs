@@ -378,16 +378,6 @@ export function validateCalendarEventDraft(draft = {}) {
   };
 }
 
-export function normalizeInvitedGuests(guests = []) {
-  return guests
-    .map((guest) => ({
-      ...guest,
-      name: cleanText(guest.name),
-      email: cleanText(guest.email).toLowerCase(),
-    }))
-    .filter((guest) => guest.email);
-}
-
 export function addOrUpdateGoogleMeetResource(meetingData, meetUrl) {
   const googleMeetResource = {
     title: "Google Meet",
