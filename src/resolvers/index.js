@@ -5,7 +5,7 @@ import {
   addOrUpdateGoogleMeetResource,
   buildCalendarDescription,
   validateCalendarEventDraft,
-} from "../calendar-event-form.mjs";
+} from "../features/calendar/calendar-event-form.mjs";
 import {
   createGoogleCalendarAutomationStatus,
   getAutomationSettings,
@@ -14,7 +14,7 @@ import {
 import {
   buildGoogleCalendarEventBody,
   extractGoogleCalendarEventLinks,
-} from "../google-calendar-event.mjs";
+} from "../features/calendar/google-calendar-event.mjs";
 import {
   refreshMeetingNoteFromConfluence,
   syncMeetingNotesFromConfluence,

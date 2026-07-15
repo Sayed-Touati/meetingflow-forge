@@ -17,7 +17,7 @@ import {
     Toggle,
     xcss,
 } from "@forge/react";
-import { buildCalendarDescriptionPreview } from "../../calendar-event-form.mjs";
+import { buildCalendarDescriptionPreview } from "../../features/calendar/calendar-event-form.mjs";
 
 const fieldGroupStyles = xcss({
     flexGrow: 1,

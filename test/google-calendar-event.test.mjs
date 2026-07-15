@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildGoogleCalendarEventBody,
   extractGoogleCalendarEventLinks,
-} from "../src/google-calendar-event.mjs";
+} from "../src/features/calendar/google-calendar-event.mjs";
 
 const draft = {
   title: "Launch planning",
