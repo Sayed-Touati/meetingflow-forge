@@ -23,7 +23,7 @@ import DeleteMeetingModal from "./features/meeting-notes/DeleteMeetingModal";
 import MeetingDetailsSection from "./features/meeting-notes/MeetingDetailsSection";
 import MeetingSelector from "./features/meeting-notes/MeetingSelector";
 import { getEditableInputValue } from "./features/meeting-notes/meeting-editing.mjs";
-import { getMessageAutoDismissMs } from "./message-timing.mjs";
+import { getMessageAutoDismissMs } from "./utils/message-timing.mjs";
 
 function getConfluenceEditUrl({ pageId, pageUrl }) {
     if (!pageUrl) {
