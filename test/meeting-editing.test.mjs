@@ -15,7 +15,7 @@ import {
   stringifyListItems,
   stringifyParticipants,
   stringifyRelatedInfo,
-} from "../src/frontend/meeting-editing.mjs";
+} from "../src/frontend/features/meeting-notes/meeting-editing.mjs";
 
 test("edit meeting labels match the Confluence meeting note fields", () => {
   assert.deepEqual(EDIT_MEETING_FIELD_LABELS, {

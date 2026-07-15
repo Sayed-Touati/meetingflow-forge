@@ -22,7 +22,7 @@ import CreateCalendarEventModal from "./features/calendar/CreateCalendarEventMod
 import DeleteMeetingModal from "./features/meeting-notes/DeleteMeetingModal";
 import MeetingDetailsSection from "./features/meeting-notes/MeetingDetailsSection";
 import MeetingSelector from "./features/meeting-notes/MeetingSelector";
-import { getEditableInputValue } from "./meeting-editing.mjs";
+import { getEditableInputValue } from "./features/meeting-notes/meeting-editing.mjs";
 import { getMessageAutoDismissMs } from "./message-timing.mjs";
 
 function getConfluenceEditUrl({ pageId, pageUrl }) {
