@@ -3,11 +3,11 @@ import { kvs } from "@forge/kvs";
 import {
   createGoogleCalendarAutomationStatus,
   getAutomationSettings,
-} from "./features/automation/automation-settings.mjs";
-import { parseMeetingNotePage } from "./features/meeting-notes/meeting-parser.mjs";
-import { resolveParticipantDisplayNames } from "./features/meeting-notes/participant-resolver.mjs";
-import { saveMeetingNoteRecord } from "./features/meeting-notes/meeting-storage.mjs";
-import { MEETING_NOTES_TEMPLATE_ID } from "./features/meeting-notes/constants.mjs";
+} from "../features/automation/automation-settings.mjs";
+import { MEETING_NOTES_TEMPLATE_ID } from "../features/meeting-notes/constants.mjs";
+import { parseMeetingNotePage } from "../features/meeting-notes/meeting-parser.mjs";
+import { saveMeetingNoteRecord } from "../features/meeting-notes/meeting-storage.mjs";
+import { resolveParticipantDisplayNames } from "../features/meeting-notes/participant-resolver.mjs";
 
 export async function handlePageEvent(event, context) {
   console.log("MeetingFlow received a Confluence page update event.");
