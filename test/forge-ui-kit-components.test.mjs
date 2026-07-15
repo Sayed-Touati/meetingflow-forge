@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 test("meeting action CTAs use supported Forge UI Kit buttons", async () => {
-  const source = await readFile("src/frontend/components/MeetingActions.jsx", "utf8");
+  const source = await readFile("src/frontend/features/meeting-notes/MeetingActions.jsx", "utf8");
 
   assert.equal(
     source.includes("Pressable"),
@@ -14,7 +14,7 @@ test("meeting action CTAs use supported Forge UI Kit buttons", async () => {
 
 test("calendar event modal gives the title field a helpful placeholder", async () => {
   const source = await readFile(
-    "src/frontend/components/CreateCalendarEventModal.jsx",
+    "src/frontend/features/calendar/CreateCalendarEventModal.jsx",
     "utf8",
   );
 
@@ -27,11 +27,11 @@ test("calendar event modal gives the title field a helpful placeholder", async (
 
 test("calendar event modal and delete modal expose supported icon buttons", async () => {
   const calendarModalSource = await readFile(
-    "src/frontend/components/CreateCalendarEventModal.jsx",
+    "src/frontend/features/calendar/CreateCalendarEventModal.jsx",
     "utf8",
   );
   const deleteModalSource = await readFile(
-    "src/frontend/components/DeleteMeetingModal.jsx",
+    "src/frontend/features/meeting-notes/DeleteMeetingModal.jsx",
     "utf8",
   );
 
@@ -65,11 +65,11 @@ test("app notifies calendar event link status without deletion wording", async (
 test("app shows selected note calendar status and update mode copy", async () => {
   const appSource = await readFile("src/frontend/App.jsx", "utf8");
   const selectorSource = await readFile(
-    "src/frontend/components/MeetingSelector.jsx",
+    "src/frontend/features/meeting-notes/MeetingSelector.jsx",
     "utf8",
   );
   const calendarModalSource = await readFile(
-    "src/frontend/components/CreateCalendarEventModal.jsx",
+    "src/frontend/features/calendar/CreateCalendarEventModal.jsx",
     "utf8",
   );
 
@@ -90,11 +90,11 @@ test("app shows selected note calendar status and update mode copy", async () =>
 test("calendar action label follows the one-event-per-note rule", async () => {
   const appSource = await readFile("src/frontend/App.jsx", "utf8");
   const detailsSource = await readFile(
-    "src/frontend/components/MeetingDetailsSection.jsx",
+    "src/frontend/features/meeting-notes/MeetingDetailsSection.jsx",
     "utf8",
   );
   const actionsSource = await readFile(
-    "src/frontend/components/MeetingActions.jsx",
+    "src/frontend/features/meeting-notes/MeetingActions.jsx",
     "utf8",
   );
 
@@ -106,15 +106,15 @@ test("calendar action label follows the one-event-per-note rule", async () => {
 
 test("meeting details show calendar time action and simplified delete modal", async () => {
   const infoCardSource = await readFile(
-    "src/frontend/components/MeetingInfoCard.jsx",
+    "src/frontend/features/meeting-notes/MeetingInfoCard.jsx",
     "utf8",
   );
   const deleteModalSource = await readFile(
-    "src/frontend/components/DeleteMeetingModal.jsx",
+    "src/frontend/features/meeting-notes/DeleteMeetingModal.jsx",
     "utf8",
   );
   const selectorSource = await readFile(
-    "src/frontend/components/MeetingSelector.jsx",
+    "src/frontend/features/meeting-notes/MeetingSelector.jsx",
     "utf8",
   );
 
@@ -133,7 +133,7 @@ test("meeting details show calendar time action and simplified delete modal", as
 
 test("delete modal uses one destructive action for linked calendar events", async () => {
   const deleteModalSource = await readFile(
-    "src/frontend/components/DeleteMeetingModal.jsx",
+    "src/frontend/features/meeting-notes/DeleteMeetingModal.jsx",
     "utf8",
   );
 
