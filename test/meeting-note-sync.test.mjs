@@ -5,7 +5,7 @@ import {
   refreshMeetingNoteFromConfluence,
   syncMeetingNotesFromConfluence,
 } from "../src/meeting-note-sync.mjs";
-import { MEETING_NOTES_TEMPLATE_ID } from "../src/meeting-notes-template.mjs";
+import { MEETING_NOTES_TEMPLATE_ID } from "../src/features/meeting-notes/constants.mjs";
 
 function createResponse(body) {
   return {

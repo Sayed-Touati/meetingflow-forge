@@ -7,7 +7,7 @@ import {
 import { parseMeetingNotePage } from "./meeting-parser.mjs";
 import { resolveParticipantDisplayNames } from "./participant-resolver.mjs";
 import { saveMeetingNoteRecord } from "./features/meeting-notes/meeting-storage.mjs";
-import { MEETING_NOTES_TEMPLATE_ID } from "./meeting-notes-template.mjs";
+import { MEETING_NOTES_TEMPLATE_ID } from "./features/meeting-notes/constants.mjs";
 
 export async function handlePageEvent(event, context) {
   console.log("MeetingFlow received a Confluence page update event.");
