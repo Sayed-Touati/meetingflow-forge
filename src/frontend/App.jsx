@@ -10,20 +10,20 @@ import { invoke, router } from "@forge/bridge";
 import {
     AUTOMATION_DEFAULT_SETTINGS,
     createAutomationSettingsDraft,
-} from "../automation-settings.mjs";
+} from "../features/automation/automation-settings.mjs";
 import {
     createCalendarEventDraft,
     validateCalendarEventDraft,
-} from "../calendar-event-form.mjs";
-import { createCalendarEventStatus } from "../meeting-storage.mjs";
-import AutomationSettingsDrawer from "./components/AutomationSettingsDrawer";
+} from "../features/calendar/calendar-event-form.mjs";
+import { createCalendarEventStatus } from "../features/meeting-notes/meeting-storage.mjs";
 import AppHeader from "./components/AppHeader";
-import CreateCalendarEventModal from "./components/CreateCalendarEventModal";
-import DeleteMeetingModal from "./components/DeleteMeetingModal";
-import MeetingDetailsSection from "./components/MeetingDetailsSection";
-import MeetingSelector from "./components/MeetingSelector";
-import { getEditableInputValue } from "./meeting-editing.mjs";
-import { getMessageAutoDismissMs } from "./message-timing.mjs";
+import AutomationSettingsDrawer from "./features/automation/AutomationSettingsDrawer";
+import CreateCalendarEventModal from "./features/calendar/CreateCalendarEventModal";
+import DeleteMeetingModal from "./features/meeting-notes/DeleteMeetingModal";
+import MeetingDetailsSection from "./features/meeting-notes/MeetingDetailsSection";
+import MeetingSelector from "./features/meeting-notes/MeetingSelector";
+import { getEditableInputValue } from "./features/meeting-notes/meeting-editing.mjs";
+import { getMessageAutoDismissMs } from "./utils/message-timing.mjs";
 
 function getConfluenceEditUrl({ pageId, pageUrl }) {
     if (!pageUrl) {

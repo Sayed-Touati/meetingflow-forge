@@ -5,27 +5,27 @@ import {
   addOrUpdateGoogleMeetResource,
   buildCalendarDescription,
   validateCalendarEventDraft,
-} from "../calendar-event-form.mjs";
+} from "../features/calendar/calendar-event-form.mjs";
 import {
   createGoogleCalendarAutomationStatus,
   getAutomationSettings,
   saveAutomationSettings,
-} from "../automation-settings.mjs";
+} from "../features/automation/automation-settings.mjs";
 import {
   buildGoogleCalendarEventBody,
   extractGoogleCalendarEventLinks,
-} from "../google-calendar-event.mjs";
+} from "../features/calendar/google-calendar-event.mjs";
 import {
   refreshMeetingNoteFromConfluence,
   syncMeetingNotesFromConfluence,
-} from "../meeting-note-sync.mjs";
+} from "../features/meeting-notes/meeting-note-sync.mjs";
 import {
   updateConfluenceMeetingNoteRelatedInfoPage,
-} from "../meeting-confluence-update.mjs";
+} from "../features/confluence/meeting-confluence-update.mjs";
 import {
   archiveConfluenceMeetingNotePage,
   deleteConfluenceMeetingNotePage,
-} from "../meeting-confluence-removal.mjs";
+} from "../features/confluence/meeting-confluence-removal.mjs";
 import {
   addCalendarEventToMeetingNoteRecord,
   createCalendarEventStatus,
@@ -34,7 +34,7 @@ import {
   listMeetingNotesForDate,
   removeMeetingNoteRecord,
   saveMeetingNoteRecord,
-} from "../meeting-storage.mjs";
+} from "../features/meeting-notes/meeting-storage.mjs";
 
 const resolver = new Resolver();
 const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";

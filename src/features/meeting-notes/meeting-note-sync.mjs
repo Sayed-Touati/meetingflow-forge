@@ -1,7 +1,7 @@
+import { MEETING_NOTES_TEMPLATE_ID } from "./constants.mjs";
 import { parseMeetingNotePage } from "./meeting-parser.mjs";
-import { resolveParticipantDisplayNames } from "./participant-resolver.mjs";
 import { saveMeetingNoteRecord } from "./meeting-storage.mjs";
-import { MEETING_NOTES_TEMPLATE_ID } from "./meeting-notes-template.mjs";
+import { resolveParticipantDisplayNames } from "./participant-resolver.mjs";
 
 const SEARCH_LIMIT = 50;
 

@@ -8,7 +8,7 @@ import {
   createCalendarEventDraft,
   normalizeCalendarTime,
   validateCalendarEventDraft,
-} from "../src/calendar-event-form.mjs";
+} from "../src/features/calendar/calendar-event-form.mjs";
 
 const meetingData = {
   pageId: "12345",

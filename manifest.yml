@@ -22,7 +22,7 @@ modules:
 
   function:
     - key: handle-page-event
-      handler: index.handlePageEvent
+      handler: triggers/page-event-handler.handlePageEvent
     - key: resolver
       handler: resolvers/index.handler
       providers:

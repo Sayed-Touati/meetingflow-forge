@@ -7,7 +7,7 @@ import {
   createAutomationSettingsDraft,
   getAutomationSettings,
   saveAutomationSettings,
-} from "../src/automation-settings.mjs";
+} from "../src/features/automation/automation-settings.mjs";
 
 function createMemoryKvs(initialValues = {}) {
   const values = new Map(Object.entries(initialValues));
@@ -111,7 +111,7 @@ test("createGoogleCalendarAutomationStatus reports missing times for user entry"
       message:
         "Google Calendar automation needs review before this meeting can be created.",
       missingFields: ["startTime", "endTime"],
-      missingParticipantEmails: [],
+      missingParticipantEmails: ["Iheb"],
     },
   );
 });
@@ -135,7 +135,35 @@ test("createGoogleCalendarAutomationStatus reports missing required identity fie
       message:
         "Google Calendar automation needs review before this meeting can be created.",
       missingFields: ["title", "startTime"],
-      missingParticipantEmails: [],
+      missingParticipantEmails: ["Sayed", "Iheb"],
+    },
+  );
+});
+
+test("createGoogleCalendarAutomationStatus labels missing participant emails from identifiers", () => {
+  assert.deepEqual(
+    createGoogleCalendarAutomationStatus(
+      {
+        pageId: "page-1",
+        title: "Planning",
+        date: "2026-07-07",
+        startTime: "09:00",
+        endTime: "10:00",
+        participants: [
+          { accountId: "abc-123" },
+          { username: "legacy-user" },
+          "External guest",
+        ],
+      },
+      { autoCreateCalendarEvent: true },
+    ),
+    {
+      type: "google-calendar",
+      status: "needs-review",
+      message:
+        "Google Calendar automation needs review before this meeting can be created.",
+      missingFields: [],
+      missingParticipantEmails: ["abc-123", "legacy-user", "External guest"],
     },
   );
 });

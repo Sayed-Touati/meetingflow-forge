@@ -9,7 +9,7 @@ import {
   listMeetingNotesForDate,
   removeMeetingNoteRecord,
   saveMeetingNoteRecord,
-} from "../src/meeting-storage.mjs";
+} from "../src/features/meeting-notes/meeting-storage.mjs";
 
 function createMemoryKvs(initialValues = {}) {
   const values = new Map(Object.entries(initialValues));

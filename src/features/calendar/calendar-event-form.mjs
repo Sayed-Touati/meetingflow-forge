@@ -1,3 +1,8 @@
+import {
+  normalizeMeetingResources,
+  resourcesToRelatedLinks,
+} from "../meeting-notes/resource-links.mjs";
+
 function cleanText(value) {
   return String(value ?? "").trim();
 }
@@ -156,17 +161,6 @@ function buildAgendaItem(topic) {
 
 function getAgendaItems(discussionTopics = []) {
   return discussionTopics.map(buildAgendaItem).filter(Boolean);
-}
-
-function relatedLinksFromResources(resources) {
-  return (resources ?? [])
-    .filter((resource) => resource?.url)
-    .map((resource) => ({
-      href: resource.url,
-      text: resource.title,
-      ...(resource.linkText ? { linkText: resource.linkText } : {}),
-      type: resource.type,
-    }));
 }
 
 export function createCalendarEventDraft(meetingData = {}, options = {}) {
@@ -378,16 +372,6 @@ export function validateCalendarEventDraft(draft = {}) {
   };
 }
 
-export function normalizeInvitedGuests(guests = []) {
-  return guests
-    .map((guest) => ({
-      ...guest,
-      name: cleanText(guest.name),
-      email: cleanText(guest.email).toLowerCase(),
-    }))
-    .filter((guest) => guest.email);
-}
-
 export function addOrUpdateGoogleMeetResource(meetingData, meetUrl) {
   const googleMeetResource = {
     title: "Google Meet",
@@ -395,14 +379,7 @@ export function addOrUpdateGoogleMeetResource(meetingData, meetUrl) {
     url: meetUrl,
     type: "google-meet",
   };
-  const resources = meetingData.resources?.length
-    ? meetingData.resources
-    : (meetingData.relatedLinks ?? []).map((link) => ({
-        title: link.text || link.href,
-        linkText: link.linkText,
-        url: link.href,
-        type: link.type,
-      }));
+  const resources = normalizeMeetingResources(meetingData);
   let didUpdate = false;
   const nextResources = resources.map((resource) => {
     if (resource.type !== "google-meet") {
@@ -420,6 +397,6 @@ export function addOrUpdateGoogleMeetResource(meetingData, meetUrl) {
   return {
     ...meetingData,
     resources: nextResources,
-    relatedLinks: relatedLinksFromResources(nextResources),
+    relatedLinks: resourcesToRelatedLinks(nextResources),
   };
 }

@@ -1,5 +1,6 @@
 import { DomUtils, parseDocument } from "htmlparser2";
 import { decodeHTML } from "entities";
+import { resourcesToRelatedLinks } from "./resource-links.mjs";
 
 const TEMPLATE_PLACEHOLDER_TEXT = [
   "List goals for this meeting (e.g., Set design priorities for FY27)",
@@ -207,7 +208,7 @@ function parseListSection(sectionNodes) {
 function parseFlexibleMeetingTime(text) {
   const timePattern = String.raw`(?:\d{1,2}:\d{2}(?:\s*[ap]\.?m\.?)?|\d{1,2}\s*[ap]\.?m\.?)`;
   const timeRangeMatch = cleanText(text).match(
-    new RegExp(`(${timePattern})\\s*(?:-|â€“|â€”|to)\\s*(${timePattern})`, "i"),
+    new RegExp(`(${timePattern})\\s*(?:-|\\u2013|\\u2014|to)\\s*(${timePattern})`, "i"),
   );
 
   if (timeRangeMatch) {
@@ -231,34 +232,11 @@ function parseMeetingTime(sectionNodesByHeading) {
   const timeText = getNodesText(
     getSectionNodes(sectionNodesByHeading, ["Time", "Date and time", "When"]),
   );
-  const flexibleMeetingTime = parseFlexibleMeetingTime(timeText);
 
-  if (flexibleMeetingTime) {
-    return flexibleMeetingTime;
-  }
-
-  const timeRangeMatch = timeText.match(
-    /(\d{1,2}:\d{2}(?:\s*[ap]m)?)\s*(?:-|–|—|to)\s*(\d{1,2}:\d{2}(?:\s*[ap]m)?)/i,
-  );
-
-  if (timeRangeMatch) {
-    return {
-      startTime: cleanText(timeRangeMatch[1]),
-      endTime: cleanText(timeRangeMatch[2]),
-    };
-  }
-
-  const singleTimeMatch = timeText.match(/(\d{1,2}:\d{2}(?:\s*[ap]m)?)/i);
-
-  return singleTimeMatch
-    ? {
-        startTime: cleanText(singleTimeMatch[1]),
-        endTime: "",
-      }
-    : {
-        startTime: "",
-        endTime: "",
-      };
+  return parseFlexibleMeetingTime(timeText) ?? {
+    startTime: "",
+    endTime: "",
+  };
 }
 
 function normalizeHeader(value) {
@@ -444,17 +422,6 @@ function parseResources(sectionNodes) {
   });
 
   return resources;
-}
-
-function resourcesToRelatedLinks(resources) {
-  return resources
-    .filter((resource) => resource.url)
-    .map((resource) => ({
-      href: resource.url,
-      text: resource.title,
-      ...(resource.linkText ? { linkText: resource.linkText } : {}),
-      type: resource.type,
-    }));
 }
 
 function stringifySections(sectionNodesByHeading) {

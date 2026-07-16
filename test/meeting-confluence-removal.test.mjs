@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   archiveConfluenceMeetingNotePage,
   deleteConfluenceMeetingNotePage,
-} from "../src/meeting-confluence-removal.mjs";
+} from "../src/features/confluence/meeting-confluence-removal.mjs";
 
 test("archiveConfluenceMeetingNotePage submits the page to Confluence archive", async () => {
   let archiveBody;
