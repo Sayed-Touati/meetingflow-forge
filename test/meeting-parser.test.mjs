@@ -250,6 +250,26 @@ test("parseMeetingNotePage extracts hour-only meridiem time ranges from the Time
   assert.equal(meetingNote.endTime, "3:30 PM");
 });
 
+test("parseMeetingNotePage extracts flexible time ranges through one parser path", () => {
+  const page = {
+    id: "flexible-time",
+    title: "Flexible time sync",
+    body: {
+      storage: {
+        value: `
+          <h2>When</h2>
+          <p>9:15 a.m. \u2013 10 p.m.</p>
+        `,
+      },
+    },
+  };
+
+  const meetingNote = parseMeetingNotePage(page);
+
+  assert.equal(meetingNote.startTime, "9:15 a.m.");
+  assert.equal(meetingNote.endTime, "10 p.m.");
+});
+
 test("parseMeetingNotePage keeps Related info labels separate from link text", () => {
   const page = {
     id: "related-info-link-labels",
