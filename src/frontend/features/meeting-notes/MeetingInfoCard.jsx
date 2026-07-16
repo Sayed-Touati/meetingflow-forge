@@ -16,6 +16,7 @@ import {
     Text,
     xcss,
 } from "@forge/react";
+import { normalizeMeetingResources } from "../../../features/meeting-notes/resource-links.mjs";
 import MeetingField from "./MeetingField";
 
 const cardShellStyles = xcss({
@@ -294,19 +295,6 @@ function DiscussionTopicsTable({ topics }) {
     );
 }
 
-function normalizeResources(meetingData) {
-    if (meetingData.resources?.length) {
-        return meetingData.resources;
-    }
-
-    return (meetingData.relatedLinks ?? []).map((link) => ({
-        title: link.text || link.href,
-        linkText: link.linkText,
-        url: link.href,
-        type: link.type,
-    }));
-}
-
 function ResourcesList({ resources }) {
     if (!resources?.length) {
         return <EmptyValue>No related info included in this meeting.</EmptyValue>;
@@ -352,7 +340,7 @@ export default function MeetingInfoCard({
     const calendarEventTime = formatCalendarEventTime(
         calendarEventStatus?.calendarEvent,
     );
-    const resources = normalizeResources(meetingData);
+    const resources = normalizeMeetingResources(meetingData);
 
     return (
         <Box xcss={cardShellStyles}>

@@ -1,5 +1,6 @@
 import { DomUtils, parseDocument } from "htmlparser2";
 import { decodeHTML } from "entities";
+import { resourcesToRelatedLinks } from "./resource-links.mjs";
 
 const TEMPLATE_PLACEHOLDER_TEXT = [
   "List goals for this meeting (e.g., Set design priorities for FY27)",
@@ -421,17 +422,6 @@ function parseResources(sectionNodes) {
   });
 
   return resources;
-}
-
-function resourcesToRelatedLinks(resources) {
-  return resources
-    .filter((resource) => resource.url)
-    .map((resource) => ({
-      href: resource.url,
-      text: resource.title,
-      ...(resource.linkText ? { linkText: resource.linkText } : {}),
-      type: resource.type,
-    }));
 }
 
 function stringifySections(sectionNodesByHeading) {
