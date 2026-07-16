@@ -44,17 +44,12 @@ export async function handlePageEvent(event, context) {
     return;
   }
 
-  console.log("Fetched page fields:", Object.keys(page));
-
-  console.log("Fetched page template/body info:", {
+  console.log("Fetched meeting note page metadata:", {
+    pageId,
+    pageTitle: page.title,
     sourceTemplateEntityId: page.sourceTemplateEntityId,
     bodyKeys: page.body ? Object.keys(page.body) : [],
     linkKeys: page._links ? Object.keys(page._links) : [],
-  });
-
-  console.log("Fetched page body preview:", {
-    storageRepresentation: page.body?.storage?.representation,
-    storageValuePreview: page.body?.storage?.value?.slice(0, 500),
   });
 
   const extractedMeetingData = await resolveParticipantDisplayNames(
@@ -78,7 +73,6 @@ export async function handlePageEvent(event, context) {
     },
   };
 
-  console.log("Extracted meeting data:", meetingDataWithAutomation);
   console.log("Meeting note section headings:", Object.keys(meetingDataWithAutomation.sections));
   console.log("Extracted meeting date:", meetingDataWithAutomation.date);
   console.log("Google Calendar automation status:", googleCalendarAutomationStatus);
@@ -86,8 +80,6 @@ export async function handlePageEvent(event, context) {
   await saveMeetingNoteRecord(kvs, meetingDataWithAutomation);
 
   console.log("Saved meeting data to Forge storage.");
-
-  console.log("Meeting note sections preview:", meetingDataWithAutomation.sections);
 
   console.log("Page update summary:", {
     eventType: event.eventType,
