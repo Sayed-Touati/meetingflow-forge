@@ -33,6 +33,31 @@ function cleanText(value) {
   return String(value ?? "").trim();
 }
 
+function getParticipantEmail(participant) {
+  return cleanText(participant?.email || participant?.emailAddress);
+}
+
+function getParticipantLabel(participant, index) {
+  if (typeof participant === "string") {
+    return cleanText(participant) || `Participant ${index + 1}`;
+  }
+
+  return (
+    cleanText(participant?.displayName) ||
+    cleanText(participant?.name) ||
+    cleanText(participant?.accountId) ||
+    cleanText(participant?.userKey) ||
+    cleanText(participant?.username) ||
+    `Participant ${index + 1}`
+  );
+}
+
+function getMissingParticipantEmails(participants = []) {
+  return participants
+    .filter((participant) => !getParticipantEmail(participant))
+    .map(getParticipantLabel);
+}
+
 export function createGoogleCalendarAutomationStatus(meetingData = {}, settings = {}) {
   const normalizedSettings = createAutomationSettingsDraft(settings);
 
@@ -48,7 +73,7 @@ export function createGoogleCalendarAutomationStatus(meetingData = {}, settings 
 
   const requiredFields = ["title", "date", "startTime", "endTime"];
   const missingFields = requiredFields.filter((fieldName) => !cleanText(meetingData[fieldName]));
-  const missingParticipantEmails = [];
+  const missingParticipantEmails = getMissingParticipantEmails(meetingData.participants);
   const needsReview = missingFields.length > 0 || missingParticipantEmails.length > 0;
 
   return {
